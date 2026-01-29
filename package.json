@@ -1,0 +1,18 @@
+{
+  "name": "labautoorderingapp",
+  "version": "1.0.0",
+  "description": "LabGolf 자동주문 프로그램",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "playwright": "^1.57.0"
+  }
+}

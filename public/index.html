@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LAB Golf 자동주문 시스템</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      color: #fff;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      margin-bottom: 10px;
+      background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    header p {
+      color: #8892b0;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+    }
+
+    .card h2 {
+      font-size: 1.2rem;
+      margin-bottom: 16px;
+      color: #00d4ff;
+    }
+
+    textarea {
+      width: 100%;
+      height: 250px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      padding: 16px;
+      color: #fff;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 14px;
+      resize: vertical;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: #00d4ff;
+    }
+
+    textarea::placeholder {
+      color: #666;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(0, 212, 255, 0.4);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .status-bar {
+      display: none;
+      margin-top: 20px;
+    }
+
+    .status-bar.active {
+      display: block;
+    }
+
+    .progress-container {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      height: 8px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .status-text {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .status-message {
+      color: #8892b0;
+    }
+
+    .status-step {
+      font-size: 12px;
+      color: #666;
+    }
+
+    .parsed-options {
+      display: none;
+    }
+
+    .parsed-options.active {
+      display: block;
+    }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    .option-item {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 12px;
+      border-radius: 8px;
+      border-left: 3px solid #00d4ff;
+    }
+
+    .option-label {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+
+    .option-value {
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .option-value.missing {
+      color: #ff6b6b;
+    }
+
+    .results {
+      display: none;
+      margin-top: 20px;
+    }
+
+    .results.active {
+      display: block;
+    }
+
+    .result-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+      margin-bottom: 4px;
+    }
+
+    .result-item.success {
+      border-left: 3px solid #00ff88;
+    }
+
+    .result-item.failed {
+      border-left: 3px solid #ff6b6b;
+    }
+
+    .result-status {
+      font-weight: 600;
+    }
+
+    .result-status.success {
+      color: #00ff88;
+    }
+
+    .result-status.failed {
+      color: #ff6b6b;
+    }
+
+    .alert {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-top: 16px;
+    }
+
+    .alert-success {
+      background: rgba(0, 255, 136, 0.1);
+      border: 1px solid #00ff88;
+      color: #00ff88;
+    }
+
+    .alert-error {
+      background: rgba(255, 107, 107, 0.1);
+      border: 1px solid #ff6b6b;
+      color: #ff6b6b;
+    }
+
+    .example-text {
+      font-size: 12px;
+      color: #666;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>LAB Golf 자동주문 시스템</h1>
+      <p>주문 정보를 입력하고 자동으로 장바구니에 담기</p>
+    </header>
+
+    <div class="card">
+      <h2>주문 정보 입력</h2>
+      <textarea id="orderInput" placeholder="주문 정보를 붙여넣으세요...
+
+예시:
+OZ.1i - CUSTOM
+Hand: Right
+Putting style: Standard
+Head weight: Standard
+Shaft: GEARS x L.A.B. (Black)
+Shaft length: 34
+Shaft lean: 0º
+Lie angle: 69°
+Putter color: Black
+Alignment Front: E
+Alignment Back: 2
+Grip selection: SuperStroke Flatso 2.0"></textarea>
+
+      <div class="button-group">
+        <button class="btn-primary" id="parseBtn">파싱 미리보기</button>
+        <button class="btn-primary" id="orderBtn" disabled>자동주문 실행</button>
+        <button class="btn-secondary" id="clearBtn">초기화</button>
+      </div>
+
+      <div class="status-bar" id="statusBar">
+        <div class="progress-container">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="status-text">
+          <span class="status-message" id="statusMessage">대기 중...</span>
+          <span class="status-step" id="statusStep"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card parsed-options" id="parsedOptions">
+      <h2>파싱된 옵션</h2>
+      <div class="options-grid" id="optionsGrid"></div>
+      <div id="validationMessage"></div>
+    </div>
+
+    <div class="card results" id="resultsCard">
+      <h2>실행 결과</h2>
+      <div id="resultsList"></div>
+    </div>
+  </div>
+
+  <script>
+    const orderInput = document.getElementById('orderInput');
+    const parseBtn = document.getElementById('parseBtn');
+    const orderBtn = document.getElementById('orderBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const statusBar = document.getElementById('statusBar');
+    const progressBar = document.getElementById('progressBar');
+    const statusMessage = document.getElementById('statusMessage');
+    const statusStep = document.getElementById('statusStep');
+    const parsedOptions = document.getElementById('parsedOptions');
+    const optionsGrid = document.getElementById('optionsGrid');
+    const validationMessage = document.getElementById('validationMessage');
+    const resultsCard = document.getElementById('resultsCard');
+    const resultsList = document.getElementById('resultsList');
+
+    let eventSource = null;
+
+    // 파싱 미리보기
+    parseBtn.addEventListener('click', async () => {
+      const orderText = orderInput.value.trim();
+      if (!orderText) {
+        alert('주문 정보를 입력해주세요.');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/parse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderText })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          displayParsedOptions(data.options, data.validation);
+          orderBtn.disabled = !data.validation.valid;
+        } else {
+          alert('파싱 오류: ' + data.error);
+        }
+      } catch (error) {
+        alert('오류 발생: ' + error.message);
+      }
+    });
+
+    // 옵션 표시
+    function displayParsedOptions(options, validation) {
+      const optionLabels = {
+        product: '제품',
+        hand: 'Hand',
+        puttingStyle: 'Putting Style',
+        headWeight: 'Head Weight',
+        shaft: 'Shaft',
+        shaftLength: 'Shaft Length',
+        shaftLean: 'Shaft Lean',
+        lieAngle: 'Lie Angle',
+        putterColor: 'Putter Color',
+        alignmentFront: 'Alignment Front',
+        alignmentBack: 'Alignment Back',
+        gripSelection: 'Grip Selection',
+        riser: 'Riser',
+        insert: 'Insert',
+        headcover: 'Headcover',
+        buildTime: 'Build Time'
+      };
+
+      let html = '';
+      for (const [key, label] of Object.entries(optionLabels)) {
+        const value = options[key];
+        const isMissing = validation.missing.includes(key);
+        html += `
+          <div class="option-item">
+            <div class="option-label">${label}</div>
+            <div class="option-value ${isMissing ? 'missing' : ''}">${value || '(미입력)'}</div>
+          </div>
+        `;
+      }
+      optionsGrid.innerHTML = html;
+
+      if (!validation.valid) {
+        validationMessage.innerHTML = `
+          <div class="alert alert-error">
+            필수 옵션 누락: ${validation.missing.join(', ')}
+          </div>
+        `;
+      } else {
+        validationMessage.innerHTML = `
+          <div class="alert alert-success">
+            모든 필수 옵션이 입력되었습니다. 자동주문을 실행할 수 있습니다.
+          </div>
+        `;
+      }
+
+      parsedOptions.classList.add('active');
+    }
+
+    // 자동주문 실행
+    orderBtn.addEventListener('click', async () => {
+      const orderText = orderInput.value.trim();
+      if (!orderText) {
+        alert('주문 정보를 입력해주세요.');
+        return;
+      }
+
+      // 상태 표시
+      statusBar.classList.add('active');
+      resultsCard.classList.remove('active');
+      orderBtn.disabled = true;
+      parseBtn.disabled = true;
+
+      // SSE 연결
+      if (eventSource) {
+        eventSource.close();
+      }
+      eventSource = new EventSource('/api/status/stream');
+
+      eventSource.onmessage = (event) => {
+        const status = JSON.parse(event.data);
+        updateStatusDisplay(status);
+
+        if (status.status === 'completed' || status.status === 'error') {
+          eventSource.close();
+          orderBtn.disabled = false;
+          parseBtn.disabled = false;
+        }
+      };
+
+      // 주문 실행 요청
+      try {
+        const response = await fetch('/api/order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderText })
+        });
+
+        const data = await response.json();
+        if (!data.success && data.error) {
+          alert('오류: ' + data.error);
+          statusBar.classList.remove('active');
+          orderBtn.disabled = false;
+          parseBtn.disabled = false;
+        }
+      } catch (error) {
+        alert('오류 발생: ' + error.message);
+        statusBar.classList.remove('active');
+        orderBtn.disabled = false;
+        parseBtn.disabled = false;
+      }
+    });
+
+    // 상태 업데이트
+    function updateStatusDisplay(status) {
+      progressBar.style.width = status.progress + '%';
+      statusMessage.textContent = status.message;
+      statusStep.textContent = status.step;
+
+      if (status.status === 'completed') {
+        statusMessage.style.color = '#00ff88';
+      } else if (status.status === 'error') {
+        statusMessage.style.color = '#ff6b6b';
+      } else {
+        statusMessage.style.color = '#8892b0';
+      }
+    }
+
+    // 초기화
+    clearBtn.addEventListener('click', () => {
+      orderInput.value = '';
+      parsedOptions.classList.remove('active');
+      statusBar.classList.remove('active');
+      resultsCard.classList.remove('active');
+      orderBtn.disabled = true;
+      progressBar.style.width = '0%';
+    });
+
+    // 텍스트 입력 시 버튼 활성화
+    orderInput.addEventListener('input', () => {
+      orderBtn.disabled = true;
+    });
+  </script>
+</body>
+</html>
