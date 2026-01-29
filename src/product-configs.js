@@ -100,8 +100,13 @@ function getProductType(productName) {
   const nameLower = productName.toLowerCase();
 
   // OZ.1i HS 먼저 체크 (더 구체적인 것 먼저)
-  if (nameLower.includes('oz.1i') || nameLower.includes('oz1i')) {
+  if ((nameLower.includes('oz.1i') || nameLower.includes('oz1i')) && nameLower.includes('hs')) {
     return 'oz1i-hs';
+  }
+
+  // OZ.1i (HS 없는 일반 버전)
+  if (nameLower.includes('oz.1i') || nameLower.includes('oz1i')) {
+    return 'oz1i';
   }
 
   // OZ.1 (OZ.1i가 아닌 경우)

@@ -637,6 +637,9 @@ async function executeOrder(options) {
     } else if (productType === 'oz1') {
       // OZ.1 전용 (Grip Selection이 Step 3에 있음)
       results = await executeOz1(page, options);
+    } else if (productType === 'oz1i') {
+      // OZ.1i 일반 (OZ.1과 유사한 구조 - Grip이 Step 3)
+      results = await executeOz1(page, options);
     } else if (productType === 'oz1i-hs') {
       results = await executeOz1iHs(page, options);
     } else {

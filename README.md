@@ -53,9 +53,30 @@ npm start
 3. 프로그램이 자동으로 상품을 장바구니에 추가합니다
 4. 체크아웃 페이지에서 결제 정보를 확인하고 수동으로 주문을 완료합니다
 
+## 지원 제품
+
+| 제품명 | 제품 타입 | URL |
+|--------|----------|-----|
+| OZ.1i - CUSTOM | oz1i | oz1i-custom |
+| OZ.1i HS - CUSTOM | oz1i-hs | oz1i-hs-custom |
+| OZ.1 - CUSTOM | oz1 | oz-1-custom |
+| MEZZ.1 MAX - CUSTOM | mezz1-max | mezz-1-max-custom |
+| LINK.1 - CUSTOM | link1 | link-1-custom |
+
 ## 기술 스택
 
 - Node.js
 - Express
 - Playwright
 - dotenv
+
+## 변경 이력
+
+### v1.1.0 (2025-01-29)
+- OZ.1i (일반)와 OZ.1i HS 제품 타입 분리
+- OZ.1i 일반 제품 URL 매핑 수정 (`oz1i-custom`)
+- OZ.1i 일반 제품은 OZ.1과 동일한 옵션 구조 사용 (Grip Selection이 Step 3)
+
+### v1.0.0 (2025-01-22)
+- 초기 버전
+- OZ.1i HS, OZ.1, MEZZ.1 MAX, LINK.1 지원

@@ -109,7 +109,8 @@ function parseOrderText(orderText) {
  */
 function getProductUrl(productName) {
   const productUrls = {
-    'OZ.1i - CUSTOM': 'https://labgolf.com/products/oz1i-hs-custom',
+    'OZ.1i - CUSTOM': 'https://labgolf.com/products/oz1i-custom',
+    'OZ.1i Custom': 'https://labgolf.com/products/oz1i-custom',
     'OZ.1i HS - CUSTOM': 'https://labgolf.com/products/oz1i-hs-custom',
     'OZ.1i HS Custom': 'https://labgolf.com/products/oz1i-hs-custom',
     'OZ.1 - CUSTOM': 'https://labgolf.com/products/oz-1-custom',
