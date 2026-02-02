@@ -35,7 +35,8 @@ async function selectPillOption(page, value) {
     const labels = document.querySelectorAll('label.avp-pilloptioncheckwrapper');
     for (const label of labels) {
       const text = label.textContent?.trim();
-      if (text === val) {
+      // 정확한 매칭 또는 가격 접미사가 있는 경우 매칭 (예: "COUNTERBALANCED (+$70.00)")
+      if (text === val || text.startsWith(val + ' ') || text.startsWith(val + '(')) {
         const input = label.querySelector('input[type="radio"]');
         const isAlreadySelected = input?.checked || false;
         if (!isAlreadySelected) label.click();
@@ -548,6 +549,87 @@ async function executeDF3(page, options) {
   return results;
 }
 
+// ===== DF 2.1 전용 실행 =====
+async function executeDF21(page, options) {
+  const results = [];
+
+  // Step 1: FOUNDATION
+  updateStatus('running', 'Step 1: FOUNDATION', 'step1', 20);
+
+  let result = await selectPillOption(page, options.hand);
+  results.push({ option: 'Hand', value: options.hand, success: result.success });
+  await page.waitForTimeout(300);
+
+  result = await selectPillOption(page, options.puttingStyle);
+  results.push({ option: 'Putting style', value: options.puttingStyle, success: result.success });
+  await page.waitForTimeout(300);
+
+  result = await selectPillOption(page, options.headWeight);
+  results.push({ option: 'Head weight', value: options.headWeight, success: result.success });
+  await page.waitForTimeout(300);
+
+  await clickNextStep(page);
+
+  // Step 2: FUNCTION
+  updateStatus('running', 'Step 2: FUNCTION', 'step2', 35);
+
+  result = await selectSwatchDropdownWithCheck(page, 'Shaft', options.shaft);
+  results.push({ option: 'Shaft', value: options.shaft, success: result.success });
+  await page.waitForTimeout(1500);
+
+  result = await selectDropdown(page, options.shaftLength);
+  results.push({ option: 'Shaft length', value: options.shaftLength, success: result.success });
+  await page.waitForTimeout(1000);
+
+  if (options.lieAngle) {
+    result = await selectDropdown(page, options.lieAngle);
+    results.push({ option: 'Lie angle', value: options.lieAngle, success: result.success });
+    await page.waitForTimeout(1000);
+  }
+
+  await clickNextStep(page);
+
+  // Step 3: FORM
+  updateStatus('running', 'Step 3: FORM', 'step3', 60);
+
+  // DF 2.1 Putter color (DF3와 다르게 접두사 없이 시도)
+  result = await selectColorSwatch(page, 'Putter color', options.putterColor);
+  results.push({ option: 'Putter color', value: options.putterColor, success: result.success });
+  await page.waitForTimeout(500);
+
+  // Alignment mark (드롭다운) - alignmentMark 또는 alignmentFront 사용
+  const alignmentValue = options.alignmentMark || options.alignmentFront;
+  if (alignmentValue) {
+    result = await selectSwatchDropdownWithCheck(page, 'Alignment', alignmentValue);
+    results.push({ option: 'Alignment', value: alignmentValue, success: result.success });
+    await page.waitForTimeout(500);
+  }
+
+  // Grip selection (드롭다운)
+  if (options.gripSelection) {
+    result = await selectSwatchDropdownWithCheck(page, 'Grip', options.gripSelection);
+    results.push({ option: 'Grip Selection', value: options.gripSelection, success: result.success });
+    await page.waitForTimeout(500);
+  }
+
+  // Headcover selection - 기본값 유지
+  const currentHeadcover = await page.evaluate(() => {
+    const titles = document.querySelectorAll('.avp-option-title');
+    for (const title of titles) {
+      if (title.textContent?.toLowerCase().includes('headcover')) {
+        const text = title.textContent || '';
+        if (text.includes('|')) {
+          return text.split('|')[1]?.trim();
+        }
+      }
+    }
+    return 'default';
+  });
+  results.push({ option: 'Headcover', value: `기본값 유지 (${currentHeadcover})`, success: true });
+
+  return results;
+}
+
 // ===== MEZZ.1 MAX 전용 실행 =====
 async function executeMezz1Max(page, options) {
   const results = [];
@@ -760,6 +842,8 @@ async function executeOrder(options) {
       results = await executeOz1iHs(page, options);
     } else if (productType === 'df3') {
       results = await executeDF3(page, options);
+    } else if (productType === 'df21') {
+      results = await executeDF21(page, options);
     } else {
       results = await executeOz1iHs(page, options);
     }

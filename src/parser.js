@@ -128,6 +128,11 @@ function getProductUrl(productName) {
     'DF3 - CUSTOM': 'https://labgolf.com/products/df3-custom',
     'DF3 Custom': 'https://labgolf.com/products/df3-custom',
     'DF3': 'https://labgolf.com/products/df3-custom',
+    'DF 2.1 - CUSTOM': 'https://labgolf.com/products/custom-df21',
+    'DF 2.1 Custom': 'https://labgolf.com/products/custom-df21',
+    'DF 2.1': 'https://labgolf.com/products/custom-df21',
+    'DF2.1 - CUSTOM': 'https://labgolf.com/products/custom-df21',
+    'DF2.1': 'https://labgolf.com/products/custom-df21',
   };
 
   // 정확한 매칭 시도
