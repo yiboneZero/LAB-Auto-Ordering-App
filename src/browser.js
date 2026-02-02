@@ -2,23 +2,26 @@ const { chromium } = require('playwright');
 const config = require('./config');
 const path = require('path');
 const os = require('os');
+const { execSync, spawn } = require('child_process');
 
 let browser = null;
 let context = null;
 let page = null;
 
+// CDP 연결 모드 사용 여부
+const USE_CDP_MODE = true;
+const CDP_PORT = 9222;
+
 async function initBrowser() {
   console.log('브라우저 시작 중...');
 
   // 기존 브라우저가 열려있으면 재사용 시도
-  if (context && page) {
+  if (browser && page) {
     try {
-      // 페이지가 아직 유효한지 확인
       await page.evaluate(() => true);
       console.log('기존 브라우저 재사용');
       return page;
     } catch (e) {
-      // 브라우저가 닫혔으면 전역 변수 초기화
       console.log('기존 브라우저가 닫혀있어 새로 시작합니다.');
       browser = null;
       context = null;
@@ -26,43 +29,146 @@ async function initBrowser() {
     }
   }
 
-  // 실제 Chrome 브라우저 경로
-  const chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+  if (USE_CDP_MODE) {
+    // CDP 모드: 일반 Chrome에 연결
+    return await initBrowserCDP();
+  } else {
+    // 기존 모드: Playwright가 Chrome 실행
+    return await initBrowserPlaywright();
+  }
+}
 
-  // 사용자 데이터 디렉토리 (로그인 세션 유지용)
+// CDP 모드: 일반 Chrome을 별도 프로필로 실행하고 연결
+async function initBrowserCDP() {
+  const chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+  // 별도의 프로필 디렉토리 사용 (기존 Chrome과 충돌 방지)
+  const userDataDir = path.join(os.homedir(), 'LabGolfAutoOrder_CDP_Chrome');
+
+  // Chrome이 이미 디버깅 포트로 실행 중인지 확인
+  let needToLaunch = true;
+  try {
+    browser = await chromium.connectOverCDP(`http://localhost:${CDP_PORT}`);
+    console.log('기존 Chrome 브라우저에 연결됨');
+    needToLaunch = false;
+  } catch (e) {
+    console.log('Chrome 디버깅 포트에 연결 실패, 새로 시작합니다...');
+  }
+
+  if (needToLaunch) {
+    // Chrome을 디버깅 모드로 실행
+    console.log('Chrome을 디버깅 모드로 시작 중...');
+    console.log(`프로필 경로: ${userDataDir}`);
+
+    const chromeProcess = spawn(chromePath, [
+      `--remote-debugging-port=${CDP_PORT}`,
+      `--user-data-dir=${userDataDir}`,
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--disable-background-networking',
+      '--disable-client-side-phishing-detection',
+      '--disable-default-apps',
+      '--disable-extensions',
+      '--disable-hang-monitor',
+      '--disable-popup-blocking',
+      '--disable-prompt-on-repost',
+      '--disable-sync',
+      '--disable-translate',
+      '--metrics-recording-only',
+      '--safebrowsing-disable-auto-update',
+    ], {
+      detached: true,
+      stdio: 'ignore'
+    });
+    chromeProcess.unref();
+
+    // Chrome이 시작될 때까지 대기 (최대 10초)
+    let connected = false;
+    for (let i = 0; i < 10; i++) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      try {
+        browser = await chromium.connectOverCDP(`http://localhost:${CDP_PORT}`);
+        console.log('Chrome 브라우저에 연결 완료');
+        connected = true;
+        break;
+      } catch (e) {
+        console.log(`연결 시도 ${i + 1}/10...`);
+      }
+    }
+
+    if (!connected) {
+      throw new Error('Chrome 연결 실패. 포트 9222가 사용 중인지 확인하세요.');
+    }
+  }
+
+  // 기존 context와 page 가져오기
+  const contexts = browser.contexts();
+  context = contexts[0] || await browser.newContext();
+
+  const pages = context.pages();
+  page = pages[0] || await context.newPage();
+
+  console.log('브라우저 시작 완료 (CDP 연결 - 일반 Chrome)');
+  return page;
+}
+
+// 기존 Playwright 모드
+async function initBrowserPlaywright() {
+  const chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
   const userDataDir = path.join(os.homedir(), 'LabGolfAutoOrder_ChromeData');
 
-  // 실제 Chrome을 persistent context로 실행 (봇 감지 우회)
   context = await chromium.launchPersistentContext(userDataDir, {
-    headless: false, // 반드시 보이게
+    headless: false,
     executablePath: chromePath,
-    channel: 'chrome', // 시스템에 설치된 Chrome 사용
+    channel: 'chrome',
     args: [
       '--disable-blink-features=AutomationControlled',
       '--no-sandbox',
-      '--disable-web-security',
-      '--disable-features=IsolateOrigins,site-per-process',
+      '--disable-infobars',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--disable-gpu',
     ],
-    ignoreDefaultArgs: ['--enable-automation'],
+    ignoreDefaultArgs: ['--enable-automation', '--enable-blink-features=AutomationControlled'],
     viewport: { width: 1280, height: 720 },
   });
 
-  page = context.pages()[0] || await context.newPage();
+  const pages = context.pages();
+  for (const p of pages) {
+    await p.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => false });
+    });
+  }
 
-  console.log('브라우저 시작 완료 (실제 Chrome 사용)');
+  page = context.pages()[0] || await context.newPage();
+  console.log('브라우저 시작 완료 (Playwright 모드)');
   return page;
 }
 
 async function closeBrowser() {
-  if (context) {
-    try {
-      await context.close();
-      console.log('브라우저 종료');
-    } catch (e) {
-      // 이미 닫힌 경우 무시
+  if (USE_CDP_MODE) {
+    // CDP 모드: 브라우저를 닫지 않고 연결만 해제
+    if (browser) {
+      try {
+        await browser.close(); // CDP에서는 disconnect 역할
+        console.log('Chrome 연결 해제 (브라우저는 유지됨)');
+      } catch (e) {
+        // 이미 연결이 끊긴 경우 무시
+      }
+    }
+  } else {
+    // Playwright 모드: context 종료
+    if (context) {
+      try {
+        await context.close();
+        console.log('브라우저 종료');
+      } catch (e) {
+        // 이미 닫힌 경우 무시
+      }
     }
   }
-  // 전역 변수 초기화 - 다음 주문 시 새 브라우저 시작 가능하도록
+  // 전역 변수 초기화 - 다음 주문 시 새 연결 가능하도록
   browser = null;
   context = null;
   page = null;

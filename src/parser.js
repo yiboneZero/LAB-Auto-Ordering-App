@@ -30,6 +30,7 @@ function parseOrderText(orderText) {
     putterColor: null,
     alignmentFront: null,
     alignmentBack: null,
+    alignmentMark: null,  // DF3용
     gripSelection: null,
     riser: 'Black', // 기본값
     insert: 'Medium Fly Mill - Stainless Steel', // 기본값
@@ -85,6 +86,9 @@ function parseOrderText(orderText) {
     } else if (keyLower === 'alignment back') {
       // 0, 1, 2, 3 등 숫자는 그대로 유지
       options.alignmentBack = value;
+    } else if (keyLower === 'alignment mark' || keyLower === 'alignment') {
+      // DF3용 단일 alignment mark
+      options.alignmentMark = value;
     } else if (keyLower === 'grip selection' || keyLower === 'grip') {
       options.gripSelection = value;
     } else if (keyLower === 'riser') {
@@ -121,6 +125,9 @@ function getProductUrl(productName) {
     'LINK.1 - CUSTOM': 'https://labgolf.com/products/link-1-custom',
     'LINK. 1 - CUSTOM': 'https://labgolf.com/products/link-1-custom',
     'LINK.1': 'https://labgolf.com/products/link-1-custom',
+    'DF3 - CUSTOM': 'https://labgolf.com/products/df3-custom',
+    'DF3 Custom': 'https://labgolf.com/products/df3-custom',
+    'DF3': 'https://labgolf.com/products/df3-custom',
   };
 
   // 정확한 매칭 시도

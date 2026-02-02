@@ -240,20 +240,45 @@ async function clickNextStep(page) {
 // Add to Cart 클릭
 async function clickAddToCart(page) {
   try {
-    // 버튼 텍스트로 찾아서 클릭 (더 안정적)
-    const button = page.locator('button:has-text("ADD TO CART")');
-    await button.click();
-    await page.waitForTimeout(2000); // 페이지 전환 대기
-    return { success: true };
-  } catch (e) {
-    // 폴백: 셀렉터로 시도
-    try {
-      await page.click('button.avis-new-addcart-button, button[name="add"]');
-      await page.waitForTimeout(2000);
-      return { success: true };
-    } catch (e2) {
-      return { success: false, error: e2.message };
+    // avis-new-addcart-button 클래스만 선택 (페이지에 ADD TO CART 버튼이 2개 있음)
+    const button = page.locator('button.avis-new-addcart-button');
+    await button.waitFor({ state: 'visible', timeout: 5000 });
+
+    // 버튼이 활성화(disabled가 아닌 상태)될 때까지 추가 대기
+    await page.waitForFunction(() => {
+      const btn = document.querySelector('button.avis-new-addcart-button, button[name="add"]');
+      return btn && !btn.disabled;
+    }, { timeout: 5000 });
+
+    // JavaScript로 직접 클릭 (Playwright click이 실제로 작동하지 않는 경우 대비)
+    const clicked = await page.evaluate(() => {
+      const btn = document.querySelector('button.avis-new-addcart-button, button[name="add"]');
+      if (btn && !btn.disabled) {
+        btn.click();
+        return true;
+      }
+      return false;
+    });
+
+    if (!clicked) {
+      // 폴백: Playwright click 시도
+      await button.click();
     }
+
+    // 장바구니 페이지로 이동 대기 (최대 10초)
+    try {
+      await page.waitForURL('**/cart**', { timeout: 10000 });
+      console.log('장바구니 페이지로 이동 완료');
+      return { success: true, navigated: true };
+    } catch (navError) {
+      // URL 변경이 없어도 장바구니에 추가되었을 수 있음 (AJAX)
+      console.log('장바구니 페이지로 이동하지 않음 - AJAX 방식일 수 있음');
+      await page.waitForTimeout(2000);
+      return { success: true, navigated: false };
+    }
+  } catch (e) {
+    console.error('Add to Cart 오류:', e.message);
+    return { success: false, error: e.message };
   }
 }
 
@@ -416,6 +441,96 @@ async function executeOz1(page, options) {
   }
 
   // Headcover - 기본값 유지
+  const currentHeadcover = await page.evaluate(() => {
+    const titles = document.querySelectorAll('.avp-option-title');
+    for (const title of titles) {
+      if (title.textContent?.toLowerCase().includes('headcover')) {
+        const text = title.textContent || '';
+        if (text.includes('|')) {
+          return text.split('|')[1]?.trim();
+        }
+      }
+    }
+    return 'default';
+  });
+  results.push({ option: 'Headcover', value: `기본값 유지 (${currentHeadcover})`, success: true });
+
+  return results;
+}
+
+// ===== DF3 전용 실행 =====
+async function executeDF3(page, options) {
+  const results = [];
+
+  // Step 1: FOUNDATION
+  updateStatus('running', 'Step 1: FOUNDATION', 'step1', 20);
+
+  let result = await selectPillOption(page, options.hand);
+  results.push({ option: 'Hand', value: options.hand, success: result.success });
+  await page.waitForTimeout(300);
+
+  result = await selectPillOption(page, options.puttingStyle);
+  results.push({ option: 'Putting style', value: options.puttingStyle, success: result.success });
+  await page.waitForTimeout(300);
+
+  result = await selectPillOption(page, options.headWeight);
+  results.push({ option: 'Head weight', value: options.headWeight, success: result.success });
+  await page.waitForTimeout(300);
+
+  await clickNextStep(page);
+
+  // Step 2: FUNCTION
+  updateStatus('running', 'Step 2: FUNCTION', 'step2', 35);
+
+  result = await selectSwatchDropdownWithCheck(page, 'Shaft', options.shaft);
+  results.push({ option: 'Shaft', value: options.shaft, success: result.success });
+  await page.waitForTimeout(1500);
+
+  result = await selectDropdown(page, options.shaftLength);
+  results.push({ option: 'Shaft length', value: options.shaftLength, success: result.success });
+  await page.waitForTimeout(1000);
+
+  if (options.lieAngle) {
+    result = await selectDropdown(page, options.lieAngle);
+    results.push({ option: 'Lie angle', value: options.lieAngle, success: result.success });
+    await page.waitForTimeout(1000);
+  }
+
+  if (options.shaftLean) {
+    result = await selectDropdown(page, options.shaftLean);
+    results.push({ option: 'Shaft lean', value: options.shaftLean, success: result.success });
+    await page.waitForTimeout(1000);
+  }
+
+  await clickNextStep(page);
+
+  // Step 3: FORM
+  updateStatus('running', 'Step 3: FORM', 'step3', 60);
+
+  // DF3 Putter color 형식: "DF3 - Black" 등
+  const putterColorValue = options.putterColor?.includes('DF3')
+    ? options.putterColor
+    : `DF3 - ${options.putterColor}`;
+  result = await selectColorSwatch(page, 'Putter color', putterColorValue);
+  results.push({ option: 'Putter color', value: putterColorValue, success: result.success });
+  await page.waitForTimeout(500);
+
+  // Alignment mark (드롭다운) - alignmentMark 또는 alignmentFront 사용
+  const alignmentValue = options.alignmentMark || options.alignmentFront;
+  if (alignmentValue) {
+    result = await selectSwatchDropdownWithCheck(page, 'Alignment mark', alignmentValue);
+    results.push({ option: 'Alignment mark', value: alignmentValue, success: result.success });
+    await page.waitForTimeout(500);
+  }
+
+  // Grip selection (드롭다운) - "Grip selection" 타이틀 사용
+  if (options.gripSelection) {
+    result = await selectSwatchDropdownWithCheck(page, 'Grip selection', options.gripSelection);
+    results.push({ option: 'Grip selection', value: options.gripSelection, success: result.success });
+    await page.waitForTimeout(500);
+  }
+
+  // Headcover selection (스와치) - 기본값 유지
   const currentHeadcover = await page.evaluate(() => {
     const titles = document.querySelectorAll('.avp-option-title');
     for (const title of titles) {
@@ -625,6 +740,7 @@ async function executeOrder(options) {
 
     console.log(`제품 타입: ${productType}`);
     console.log(`제품 URL: ${productUrl}`);
+    console.log(`파싱된 옵션:`, JSON.stringify(options, null, 2));
 
     await page.goto(productUrl, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(3000);
@@ -642,8 +758,37 @@ async function executeOrder(options) {
       results = await executeOz1(page, options);
     } else if (productType === 'oz1i-hs') {
       results = await executeOz1iHs(page, options);
+    } else if (productType === 'df3') {
+      results = await executeDF3(page, options);
     } else {
       results = await executeOz1iHs(page, options);
+    }
+
+    // 옵션 선택 실패 체크
+    const failedOptions = results.filter(r => !r.success);
+    if (failedOptions.length > 0) {
+      const failedList = failedOptions.map(r => `"${r.option}: ${r.value}"`).join(', ');
+      const failedMsg = `옵션 선택 실패: ${failedList}`;
+      console.log('\n========================================');
+      console.log(`[옵션 선택 실패] 다음 옵션을 선택하지 못했습니다:`);
+      failedOptions.forEach(r => {
+        console.log(`  - ${r.option}: "${r.value}" (해당 옵션이 존재하지 않거나 선택할 수 없습니다)`);
+      });
+      console.log('========================================\n');
+
+      // 결과 출력
+      console.log('\n=== 실행 결과 ===');
+      results.forEach(r => {
+        console.log(`  ${r.success ? '✓' : '✗'} ${r.option}: ${r.value}`);
+      });
+
+      updateStatus('error', failedMsg, 'option_failed', 100);
+      return {
+        success: false,
+        results,
+        message: failedMsg,
+        failedOptions: failedOptions.map(r => ({ option: r.option, value: r.value }))
+      };
     }
 
     // Add to Cart

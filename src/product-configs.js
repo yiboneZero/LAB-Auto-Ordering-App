@@ -39,6 +39,39 @@ const PRODUCT_CONFIGS = {
     }
   },
 
+  // DF3 Custom
+  'df3': {
+    name: 'DF3 Custom',
+    url: 'https://labgolf.com/products/df3-custom',
+    steps: {
+      step1: {
+        name: 'FOUNDATION',
+        options: ['hand', 'puttingStyle', 'headWeight']
+      },
+      step2: {
+        name: 'FUNCTION',
+        options: ['shaft', 'shaftLength', 'lieAngle'],
+        conditional: true
+      },
+      step3: {
+        name: 'FORM',
+        options: ['putterColor', 'alignmentMark', 'gripSelection', 'headcover']
+      }
+    },
+    optionTypes: {
+      hand: 'pill',
+      puttingStyle: 'pill',
+      headWeight: 'pill',
+      shaft: 'swatchDropdown',
+      shaftLength: 'select',
+      lieAngle: 'select',
+      putterColor: 'colorSwatch',
+      alignmentMark: 'swatchDropdown',
+      gripSelection: 'swatchDropdown',
+      headcover: 'swatch'
+    }
+  },
+
   // MEZZ.1 MAX Custom
   'mezz1-max': {
     name: 'MEZZ.1 MAX Custom',
@@ -120,6 +153,10 @@ function getProductType(productName) {
 
   if (nameLower.includes('link')) {
     return 'link1';
+  }
+
+  if (nameLower.includes('df3')) {
+    return 'df3';
   }
 
   return 'oz1i-hs';
