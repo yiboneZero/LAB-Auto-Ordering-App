@@ -8,6 +8,8 @@ LabGolf 자동주문 프로그램입니다. Playwright를 사용하여 브라우
 - 상품 자동 장바구니 추가
 - 체크아웃 페이지 자동 이동
 - 여러 상품 동시 주문 지원
+- CDP 모드: 일반 Chrome 브라우저에 연결하여 봇 감지 우회
+- 옵션 선택 실패 시 상세 에러 메시지 표시
 
 ## 설치
 
@@ -62,6 +64,7 @@ npm start
 | OZ.1 - CUSTOM | oz1 | oz-1-custom |
 | MEZZ.1 MAX - CUSTOM | mezz1-max | mezz-1-max-custom |
 | LINK.1 - CUSTOM | link1 | link-1-custom |
+| DF3 - CUSTOM | df3 | df3-custom |
 
 ## 기술 스택
 
@@ -71,6 +74,12 @@ npm start
 - dotenv
 
 ## 변경 이력
+
+### v1.2.0 (2025-02-02)
+- CDP 모드 추가: 일반 Chrome에 연결하여 봇 감지 우회
+- DF3 제품 지원 추가
+- 옵션 선택 실패 시 상세 에러 메시지 표시
+- Add to Cart 버튼 셀렉터 수정 (2개 버튼 충돌 해결)
 
 ### v1.1.0 (2025-01-29)
 - OZ.1i (일반)와 OZ.1i HS 제품 타입 분리
