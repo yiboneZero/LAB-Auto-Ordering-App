@@ -65,6 +65,7 @@ npm start
 | MEZZ.1 MAX - CUSTOM | mezz1-max | mezz-1-max-custom |
 | LINK.1 - CUSTOM | link1 | link-1-custom |
 | DF3 - CUSTOM | df3 | df3-custom |
+| DF 2.1 - CUSTOM | df21 | custom-df21 |
 
 ## 기술 스택
 
@@ -74,6 +75,10 @@ npm start
 - dotenv
 
 ## 변경 이력
+
+### v1.2.1 (2025-02-02)
+- DF 2.1 제품 지원 추가
+- 가격 접미사가 있는 옵션 매칭 수정 (예: "COUNTERBALANCED (+$70.00)")
 
 ### v1.2.0 (2025-02-02)
 - CDP 모드 추가: 일반 Chrome에 연결하여 봇 감지 우회
