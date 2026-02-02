@@ -71,12 +71,12 @@ function parseOrderText(orderText) {
       if (valueLower === 'std' || valueLower === 'standard') {
         options.shaftLean = null; // 선택 불필요
       } else {
-        const lean = value.replace(/[^\d]/g, '');
+        const lean = value.replace(/[^\d.]/g, '');
         options.shaftLean = lean ? lean + '°' : null;
       }
     } else if (keyLower === 'lie angle') {
-      // 숫자만 추출하고 ° 추가
-      const angle = value.replace(/[^\d]/g, '');
+      // 숫자와 소수점 추출하고 ° 추가
+      const angle = value.replace(/[^\d.]/g, '');
       options.lieAngle = angle + '°';
     } else if (keyLower === 'putter color') {
       options.putterColor = value;
