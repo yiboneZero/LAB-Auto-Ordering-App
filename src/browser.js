@@ -178,8 +178,78 @@ function getPage() {
   return page;
 }
 
+// 브라우저 연결 상태 확인
+function isBrowserConnected() {
+  return browser !== null && page !== null;
+}
+
+// 브라우저 상태 확인 (연결 유효성 포함)
+async function getBrowserStatus() {
+  if (!browser || !page) {
+    return { connected: false, loggedIn: false };
+  }
+
+  try {
+    // 페이지가 유효한지 확인
+    await page.evaluate(() => true);
+
+    // 로그인 상태 확인
+    const loggedIn = await checkLoginStatus();
+
+    return { connected: true, loggedIn };
+  } catch (e) {
+    // 브라우저가 닫혔거나 연결이 끊긴 경우
+    browser = null;
+    context = null;
+    page = null;
+    return { connected: false, loggedIn: false };
+  }
+}
+
+// 로그인 상태 확인 (LabGolf 사이트)
+async function checkLoginStatus() {
+  if (!page) return false;
+
+  try {
+    const currentUrl = page.url();
+
+    // 이미 LabGolf 사이트에 있는 경우 로그인 상태 확인
+    if (currentUrl.includes('labgolf.com')) {
+      // 로그인 버튼 또는 계정 메뉴 확인
+      const isLoggedIn = await page.evaluate(() => {
+        // 로그인 상태일 때 나타나는 요소 확인
+        const accountLink = document.querySelector('a[href="/account"]');
+        const logoutLink = document.querySelector('a[href="/account/logout"]');
+        const loginLink = document.querySelector('a[href="/account/login"]');
+
+        // 로그인 링크가 없거나 계정 링크가 있으면 로그인된 상태
+        return (accountLink || logoutLink) && !loginLink;
+      });
+      return isLoggedIn;
+    }
+
+    return false;
+  } catch (e) {
+    return false;
+  }
+}
+
+// 브라우저 열기 (로그인 페이지로 이동)
+async function openBrowserForLogin() {
+  const p = await initBrowser();
+
+  // LabGolf 로그인 페이지로 이동
+  await p.goto('https://labgolf.com/account/login', { waitUntil: 'domcontentloaded' });
+
+  return p;
+}
+
 module.exports = {
   initBrowser,
   closeBrowser,
   getPage,
+  isBrowserConnected,
+  getBrowserStatus,
+  checkLoginStatus,
+  openBrowserForLogin,
 };

@@ -1,7 +1,6 @@
 // 자동주문 실행 모듈 v2 - 제품별 전용 처리
-const { initBrowser, closeBrowser } = require('./browser');
-const { waitForManualLogin } = require('./login');
-const { getProductConfig, getProductType } = require('./product-configs');
+const { getPage, getBrowserStatus, closeBrowser } = require('./browser');
+const { getProductType } = require('./product-configs');
 const { getProductUrl } = require('./parser');
 
 // 상태 관리
@@ -810,11 +809,21 @@ async function executeOrder(options) {
   let results = [];
 
   try {
-    updateStatus('running', '브라우저 시작 중...', 'init', 5);
-    page = await initBrowser();
+    // v2: 이미 연결된 브라우저 사용 (수동 로그인 완료 상태)
+    updateStatus('running', '브라우저 상태 확인 중...', 'init', 5);
 
-    updateStatus('running', '로그인 대기 중...', 'login', 10);
-    await waitForManualLogin(page);
+    const browserStatus = await getBrowserStatus();
+    if (!browserStatus.connected) {
+      throw new Error('브라우저가 연결되지 않았습니다. 먼저 "브라우저 열기"를 클릭하세요.');
+    }
+    if (!browserStatus.loggedIn) {
+      throw new Error('로그인이 필요합니다. 브라우저에서 로그인을 완료해주세요.');
+    }
+
+    page = getPage();
+    if (!page) {
+      throw new Error('브라우저 페이지를 가져올 수 없습니다.');
+    }
 
     updateStatus('running', '상품 페이지로 이동 중...', 'navigate', 15);
     const productUrl = getProductUrl(options.product);

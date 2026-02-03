@@ -3,6 +3,7 @@ const express = require('express');
 const path = require('path');
 const { parseOrderText, validateOptions } = require('./parser');
 const { executeOrder, getStatus, setStatusCallback } = require('./order-executor-v2');
+const { openBrowserForLogin, getBrowserStatus, closeBrowser } = require('./browser');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -94,6 +95,38 @@ app.post('/api/order', async (req, res) => {
 // 현재 상태 조회 API
 app.get('/api/status', (req, res) => {
   res.json(getStatus());
+});
+
+// ===== 브라우저 관련 API (v2) =====
+
+// 브라우저 열기 (로그인 페이지로 이동)
+app.post('/api/browser/open', async (req, res) => {
+  try {
+    await openBrowserForLogin();
+    res.json({ success: true, message: '브라우저가 열렸습니다. 로그인해주세요.' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 브라우저 상태 확인 (연결 여부 + 로그인 상태)
+app.get('/api/browser/status', async (req, res) => {
+  try {
+    const status = await getBrowserStatus();
+    res.json({ success: true, ...status });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 브라우저 닫기
+app.post('/api/browser/close', async (req, res) => {
+  try {
+    await closeBrowser();
+    res.json({ success: true, message: '브라우저 연결이 종료되었습니다.' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // 메인 페이지

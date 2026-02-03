@@ -256,6 +256,90 @@
       color: #666;
       margin-top: 8px;
     }
+
+    /* 브라우저 상태 섹션 */
+    .browser-status {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 20px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #666;
+    }
+
+    .status-dot.connected {
+      background: #00d4ff;
+      box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+    }
+
+    .status-dot.logged-in {
+      background: #00ff88;
+      box-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+    }
+
+    .status-dot.disconnected {
+      background: #ff6b6b;
+    }
+
+    .browser-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .btn-browser {
+      padding: 10px 20px;
+      font-size: 13px;
+    }
+
+    .btn-open {
+      background: linear-gradient(90deg, #00d4ff, #0099cc);
+    }
+
+    .btn-close {
+      background: rgba(255, 107, 107, 0.2);
+      border: 1px solid #ff6b6b;
+      color: #ff6b6b;
+    }
+
+    .btn-close:hover {
+      background: rgba(255, 107, 107, 0.3);
+    }
+
+    .btn-refresh {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #8892b0;
+      padding: 10px 16px;
+    }
+
+    .btn-refresh:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .login-hint {
+      font-size: 12px;
+      color: #8892b0;
+      margin-top: 12px;
+      padding: 8px 12px;
+      background: rgba(0, 212, 255, 0.1);
+      border-radius: 8px;
+      border-left: 3px solid #00d4ff;
+    }
   </style>
 </head>
 <body>
@@ -265,8 +349,31 @@
       <p>주문 정보를 입력하고 자동으로 장바구니에 담기</p>
     </header>
 
+    <!-- 브라우저 상태 카드 -->
     <div class="card">
-      <h2>주문 정보 입력</h2>
+      <h2>1. 브라우저 연결</h2>
+      <div class="browser-status">
+        <div class="status-indicator">
+          <span class="status-dot" id="connectionDot"></span>
+          <span id="connectionText">연결 안됨</span>
+        </div>
+        <div class="status-indicator">
+          <span class="status-dot" id="loginDot"></span>
+          <span id="loginText">로그인 필요</span>
+        </div>
+      </div>
+      <div class="browser-buttons">
+        <button class="btn-primary btn-browser btn-open" id="openBrowserBtn">브라우저 열기</button>
+        <button class="btn-secondary btn-browser btn-close" id="closeBrowserBtn" disabled>브라우저 닫기</button>
+        <button class="btn-secondary btn-browser btn-refresh" id="refreshStatusBtn">상태 새로고침</button>
+      </div>
+      <div class="login-hint" id="loginHint" style="display: none;">
+        브라우저에서 LabGolf 사이트에 로그인해주세요. 로그인 완료 후 "상태 새로고침"을 클릭하세요.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>2. 주문 정보 입력</h2>
       <textarea id="orderInput" placeholder="주문 정보를 붙여넣으세요...
 
 예시:
@@ -327,7 +434,128 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
     const resultsCard = document.getElementById('resultsCard');
     const resultsList = document.getElementById('resultsList');
 
+    // 브라우저 컨트롤 요소
+    const openBrowserBtn = document.getElementById('openBrowserBtn');
+    const closeBrowserBtn = document.getElementById('closeBrowserBtn');
+    const refreshStatusBtn = document.getElementById('refreshStatusBtn');
+    const connectionDot = document.getElementById('connectionDot');
+    const connectionText = document.getElementById('connectionText');
+    const loginDot = document.getElementById('loginDot');
+    const loginText = document.getElementById('loginText');
+    const loginHint = document.getElementById('loginHint');
+
     let eventSource = null;
+    let browserConnected = false;
+    let browserLoggedIn = false;
+
+    // ===== 브라우저 상태 관리 =====
+
+    // 브라우저 상태 업데이트
+    async function updateBrowserStatus() {
+      try {
+        const response = await fetch('/api/browser/status');
+        const data = await response.json();
+
+        browserConnected = data.connected;
+        browserLoggedIn = data.loggedIn;
+
+        // 연결 상태 표시
+        if (browserConnected) {
+          connectionDot.className = 'status-dot connected';
+          connectionText.textContent = '연결됨';
+          closeBrowserBtn.disabled = false;
+          openBrowserBtn.textContent = '브라우저 열기';
+        } else {
+          connectionDot.className = 'status-dot disconnected';
+          connectionText.textContent = '연결 안됨';
+          closeBrowserBtn.disabled = true;
+        }
+
+        // 로그인 상태 표시
+        if (browserLoggedIn) {
+          loginDot.className = 'status-dot logged-in';
+          loginText.textContent = '로그인됨';
+          loginHint.style.display = 'none';
+        } else if (browserConnected) {
+          loginDot.className = 'status-dot disconnected';
+          loginText.textContent = '로그인 필요';
+          loginHint.style.display = 'block';
+        } else {
+          loginDot.className = 'status-dot';
+          loginText.textContent = '로그인 필요';
+          loginHint.style.display = 'none';
+        }
+
+        // 자동주문 버튼 활성화 조건 업데이트
+        updateOrderButtonState();
+
+      } catch (error) {
+        console.error('브라우저 상태 확인 오류:', error);
+      }
+    }
+
+    // 자동주문 버튼 상태 업데이트
+    function updateOrderButtonState() {
+      const hasValidOptions = parsedOptions.classList.contains('active') &&
+                              validationMessage.querySelector('.alert-success');
+      orderBtn.disabled = !(browserConnected && browserLoggedIn && hasValidOptions);
+    }
+
+    // 브라우저 열기
+    openBrowserBtn.addEventListener('click', async () => {
+      openBrowserBtn.disabled = true;
+      openBrowserBtn.textContent = '열기 중...';
+
+      try {
+        const response = await fetch('/api/browser/open', { method: 'POST' });
+        const data = await response.json();
+
+        if (data.success) {
+          setTimeout(updateBrowserStatus, 1000);
+        } else {
+          alert('브라우저 열기 실패: ' + data.error);
+        }
+      } catch (error) {
+        alert('오류: ' + error.message);
+      } finally {
+        openBrowserBtn.disabled = false;
+        openBrowserBtn.textContent = '브라우저 열기';
+      }
+    });
+
+    // 브라우저 닫기
+    closeBrowserBtn.addEventListener('click', async () => {
+      closeBrowserBtn.disabled = true;
+
+      try {
+        const response = await fetch('/api/browser/close', { method: 'POST' });
+        const data = await response.json();
+
+        if (data.success) {
+          await updateBrowserStatus();
+        } else {
+          alert('브라우저 닫기 실패: ' + data.error);
+        }
+      } catch (error) {
+        alert('오류: ' + error.message);
+      } finally {
+        closeBrowserBtn.disabled = !browserConnected;
+      }
+    });
+
+    // 상태 새로고침
+    refreshStatusBtn.addEventListener('click', async () => {
+      refreshStatusBtn.disabled = true;
+      refreshStatusBtn.textContent = '확인 중...';
+
+      await updateBrowserStatus();
+
+      refreshStatusBtn.disabled = false;
+      refreshStatusBtn.textContent = '상태 새로고침';
+    });
+
+    // 초기 상태 확인
+    updateBrowserStatus();
 
     // 파싱 미리보기
     parseBtn.addEventListener('click', async () => {
@@ -348,7 +576,8 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
 
         if (data.success) {
           displayParsedOptions(data.options, data.validation);
-          orderBtn.disabled = !data.validation.valid;
+          // v2: 브라우저 연결 + 로그인 + 유효한 옵션 모두 필요
+          updateOrderButtonState();
         } else {
           alert('파싱 오류: ' + data.error);
         }
@@ -434,8 +663,8 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
 
         if (status.status === 'completed' || status.status === 'error') {
           eventSource.close();
-          orderBtn.disabled = false;
           parseBtn.disabled = false;
+          updateOrderButtonState();
         }
       };
 
@@ -451,14 +680,15 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
         if (!data.success && data.error) {
           alert('오류: ' + data.error);
           statusBar.classList.remove('active');
-          orderBtn.disabled = false;
           parseBtn.disabled = false;
+          // 브라우저 상태 재확인 후 버튼 상태 업데이트
+          await updateBrowserStatus();
         }
       } catch (error) {
         alert('오류 발생: ' + error.message);
         statusBar.classList.remove('active');
-        orderBtn.disabled = false;
         parseBtn.disabled = false;
+        await updateBrowserStatus();
       }
     });
 
@@ -483,14 +713,20 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
       parsedOptions.classList.remove('active');
       statusBar.classList.remove('active');
       resultsCard.classList.remove('active');
-      orderBtn.disabled = true;
       progressBar.style.width = '0%';
+      updateOrderButtonState();
     });
 
-    // 텍스트 입력 시 버튼 활성화
+    // 텍스트 입력 시 버튼 비활성화 (다시 파싱 필요)
     orderInput.addEventListener('input', () => {
-      orderBtn.disabled = true;
+      if (parsedOptions.classList.contains('active')) {
+        parsedOptions.classList.remove('active');
+      }
+      updateOrderButtonState();
     });
+
+    // 주기적으로 브라우저 상태 확인 (10초마다)
+    setInterval(updateBrowserStatus, 10000);
   </script>
 </body>
 </html>
