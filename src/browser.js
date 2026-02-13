@@ -185,24 +185,79 @@ function isBrowserConnected() {
 
 // 브라우저 상태 확인 (연결 유효성 포함)
 async function getBrowserStatus() {
-  if (!browser || !page) {
+  // browser 자체가 없으면 연결 안됨
+  if (!browser) {
     return { connected: false, loggedIn: false };
   }
 
+  // page가 없거나 유효하지 않으면 다시 잡기 시도
+  if (!page || !(await isPageValid())) {
+    const recovered = await tryRecoverPage();
+    if (!recovered) {
+      return { connected: false, loggedIn: false };
+    }
+  }
+
   try {
-    // 페이지가 유효한지 확인
-    await page.evaluate(() => true);
-
-    // 로그인 상태 확인
     const loggedIn = await checkLoginStatus();
-
     return { connected: true, loggedIn };
   } catch (e) {
-    // 브라우저가 닫혔거나 연결이 끊긴 경우
+    console.error('로그인 상태 확인 오류:', e.message);
+    return { connected: true, loggedIn: false };
+  }
+}
+
+// 페이지가 유효한지 확인
+async function isPageValid() {
+  try {
+    await page.evaluate(() => true);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// 기존 browser/context에서 페이지 다시 잡기
+async function tryRecoverPage() {
+  try {
+    // context에서 페이지 다시 가져오기
+    if (context) {
+      const pages = context.pages();
+      if (pages.length > 0) {
+        page = pages[0];
+        if (await isPageValid()) {
+          console.log('기존 context에서 페이지 복구 성공');
+          return true;
+        }
+      }
+    }
+
+    // context도 안 되면 browser에서 다시 가져오기
+    const contexts = browser.contexts();
+    for (const ctx of contexts) {
+      const pages = ctx.pages();
+      if (pages.length > 0) {
+        context = ctx;
+        page = pages[0];
+        if (await isPageValid()) {
+          console.log('browser에서 페이지 복구 성공');
+          return true;
+        }
+      }
+    }
+
+    // 복구 실패 — 상태 초기화
+    console.log('페이지 복구 실패, 상태 초기화');
     browser = null;
     context = null;
     page = null;
-    return { connected: false, loggedIn: false };
+    return false;
+  } catch (e) {
+    console.error('페이지 복구 중 오류:', e.message);
+    browser = null;
+    context = null;
+    page = null;
+    return false;
   }
 }
 
@@ -236,12 +291,21 @@ async function checkLoginStatus() {
 
 // 브라우저 열기 (로그인 페이지로 이동)
 async function openBrowserForLogin() {
-  const p = await initBrowser();
+  console.log('openBrowserForLogin 시작...');
 
-  // LabGolf 로그인 페이지로 이동
-  await p.goto('https://labgolf.com/account/login', { waitUntil: 'domcontentloaded' });
+  try {
+    const p = await initBrowser();
+    console.log('브라우저 초기화 완료, 로그인 페이지로 이동 중...');
 
-  return p;
+    // LabGolf wholesale 페이지로 이동
+    await p.goto('https://wholesale.labgolf.com', { waitUntil: 'domcontentloaded' });
+    console.log('wholesale 페이지 로딩 완료');
+
+    return p;
+  } catch (error) {
+    console.error('openBrowserForLogin 오류:', error.message);
+    throw error;
+  }
 }
 
 module.exports = {

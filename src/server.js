@@ -101,10 +101,13 @@ app.get('/api/status', (req, res) => {
 
 // 브라우저 열기 (로그인 페이지로 이동)
 app.post('/api/browser/open', async (req, res) => {
+  console.log('POST /api/browser/open 요청 받음');
   try {
     await openBrowserForLogin();
+    console.log('브라우저 열기 성공');
     res.json({ success: true, message: '브라우저가 열렸습니다. 로그인해주세요.' });
   } catch (error) {
+    console.error('브라우저 열기 실패:', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });

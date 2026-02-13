@@ -498,7 +498,7 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
     function updateOrderButtonState() {
       const hasValidOptions = parsedOptions.classList.contains('active') &&
                               validationMessage.querySelector('.alert-success');
-      orderBtn.disabled = !(browserConnected && browserLoggedIn && hasValidOptions);
+      orderBtn.disabled = !(browserConnected && hasValidOptions);
     }
 
     // 브라우저 열기

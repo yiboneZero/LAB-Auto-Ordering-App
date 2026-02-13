@@ -1,141 +1,135 @@
-// 제품별 옵션 구조 정의
+// 제품별 옵션 구조 정의 (1단계 구조 - wholesale)
 
 const PRODUCT_CONFIGS = {
   // OZ.1i HS Custom
   'oz1i-hs': {
     name: 'OZ.1i HS Custom',
-    url: 'https://labgolf.com/products/oz1i-hs-custom',
-    steps: {
-      step1: {
-        name: 'FOUNDATION',
-        options: ['hand', 'puttingStyle', 'headWeight']
-      },
-      step2: {
-        name: 'FUNCTION',
-        options: ['shaft', 'shaftLength', 'shaftLean', 'gripSelection'],
-        conditional: true  // 순차 선택 필요
-      },
-      step3: {
-        name: 'FORM',
-        options: ['riser', 'lieAngle', 'putterColor', 'insert', 'alignmentFront', 'alignmentBack', 'headcover', 'buildTime']
-      }
-    },
+    options: ['hand', 'puttingStyle', 'headWeight', 'shaft', 'insert', 'lieAngle', 'putterColor', 'alignmentMark', 'gripSelection', 'headcover', 'buildTime'],
     optionTypes: {
       hand: 'pill',
       puttingStyle: 'pill',
       headWeight: 'pill',
-      shaft: 'swatchDropdown',
-      shaftLength: 'select',
-      shaftLean: 'select',
-      gripSelection: 'swatchDropdown',
-      riser: 'select',
+      shaft: 'select',
+      insert: 'select',
       lieAngle: 'select',
       putterColor: 'colorSwatch',
+      alignmentMark: 'select',
+      gripSelection: 'select',
+      headcover: 'swatch',
+      buildTime: 'radio'
+    }
+  },
+
+  // OZ.1i Custom
+  'oz1i': {
+    name: 'OZ.1i Custom',
+    options: ['hand', 'puttingStyle', 'headWeight', 'shaft', 'insert', 'lieAngle', 'putterColor', 'alignmentMark', 'gripSelection', 'headcover', 'buildTime'],
+    optionTypes: {
+      hand: 'pill',
+      puttingStyle: 'pill',
+      headWeight: 'pill',
+      shaft: 'select',
       insert: 'select',
-      alignmentFront: 'swatchDropdown',
-      alignmentBack: 'swatchDropdown',
-      headcover: 'swatchDropdown',
-      buildTime: 'pill'
+      lieAngle: 'select',
+      putterColor: 'colorSwatch',
+      alignmentMark: 'select',
+      gripSelection: 'select',
+      headcover: 'swatch',
+      buildTime: 'radio'
+    }
+  },
+
+  // OZ.1 Custom
+  'oz1': {
+    name: 'OZ.1 Custom',
+    options: ['hand', 'puttingStyle', 'headWeight', 'shaft', 'insert', 'lieAngle', 'putterColor', 'alignmentMark', 'gripSelection', 'headcover', 'buildTime'],
+    optionTypes: {
+      hand: 'pill',
+      puttingStyle: 'pill',
+      headWeight: 'pill',
+      shaft: 'select',
+      insert: 'select',
+      lieAngle: 'select',
+      putterColor: 'colorSwatch',
+      alignmentMark: 'select',
+      gripSelection: 'select',
+      headcover: 'swatch',
+      buildTime: 'radio'
     }
   },
 
   // DF3 Custom
   'df3': {
     name: 'DF3 Custom',
-    url: 'https://labgolf.com/products/df3-custom',
-    steps: {
-      step1: {
-        name: 'FOUNDATION',
-        options: ['hand', 'puttingStyle', 'headWeight']
-      },
-      step2: {
-        name: 'FUNCTION',
-        options: ['shaft', 'shaftLength', 'lieAngle'],
-        conditional: true
-      },
-      step3: {
-        name: 'FORM',
-        options: ['putterColor', 'alignmentMark', 'gripSelection', 'headcover']
-      }
-    },
+    options: ['hand', 'puttingStyle', 'headWeight', 'shaft', 'insert', 'lieAngle', 'putterColor', 'alignmentMark', 'gripSelection', 'headcover', 'buildTime'],
     optionTypes: {
       hand: 'pill',
       puttingStyle: 'pill',
       headWeight: 'pill',
-      shaft: 'swatchDropdown',
-      shaftLength: 'select',
+      shaft: 'select',
+      insert: 'select',
       lieAngle: 'select',
       putterColor: 'colorSwatch',
-      alignmentMark: 'swatchDropdown',
-      gripSelection: 'swatchDropdown',
-      headcover: 'swatch'
+      alignmentMark: 'select',
+      gripSelection: 'select',
+      headcover: 'swatch',
+      buildTime: 'radio'
     }
   },
 
   // DF 2.1 Custom
   'df21': {
     name: 'DF 2.1 Custom',
-    url: 'https://labgolf.com/products/custom-df21',
-    steps: {
-      step1: {
-        name: 'FOUNDATION',
-        options: ['hand', 'puttingStyle', 'headWeight']
-      },
-      step2: {
-        name: 'FUNCTION',
-        options: ['shaft', 'shaftLength', 'lieAngle'],
-        conditional: true
-      },
-      step3: {
-        name: 'FORM',
-        options: ['putterColor', 'alignmentMark', 'gripSelection', 'headcover']
-      }
-    },
+    options: ['hand', 'puttingStyle', 'headWeight', 'shaft', 'insert', 'lieAngle', 'putterColor', 'alignmentMark', 'gripSelection', 'headcover', 'buildTime'],
     optionTypes: {
       hand: 'pill',
       puttingStyle: 'pill',
       headWeight: 'pill',
-      shaft: 'swatchDropdown',
-      shaftLength: 'select',
+      shaft: 'select',
+      insert: 'select',
       lieAngle: 'select',
       putterColor: 'colorSwatch',
-      alignmentMark: 'swatchDropdown',
-      gripSelection: 'swatchDropdown',
-      headcover: 'swatch'
+      alignmentMark: 'select',
+      gripSelection: 'select',
+      headcover: 'swatch',
+      buildTime: 'radio'
     }
   },
 
   // MEZZ.1 MAX Custom
   'mezz1-max': {
     name: 'MEZZ.1 MAX Custom',
-    url: 'https://labgolf.com/products/mezz-1-max-custom',
-    steps: {
-      step1: {
-        name: 'FOUNDATION',
-        options: ['hand', 'puttingStyle', 'headWeight']
-      },
-      step2: {
-        name: 'FUNCTION',
-        options: ['shaft', 'shaftLength', 'lieAngle'],
-        conditional: true
-      },
-      step3: {
-        name: 'FORM',
-        options: ['putterColor', 'alignmentMark', 'gripSelection', 'headcover', 'buildTime']
-      }
-    },
+    options: ['hand', 'puttingStyle', 'headWeight', 'shaft', 'insert', 'lieAngle', 'putterColor', 'alignmentMark', 'gripSelection', 'headcover', 'buildTime'],
     optionTypes: {
       hand: 'pill',
       puttingStyle: 'pill',
       headWeight: 'pill',
-      shaft: 'swatchDropdown',
-      shaftLength: 'select',
+      shaft: 'select',
+      insert: 'select',
       lieAngle: 'select',
       putterColor: 'colorSwatch',
-      alignmentMark: 'swatchDropdown',  // Front/Back 합쳐진 형태
-      gripSelection: 'swatchDropdown',
-      headcover: 'colorSwatch',
-      buildTime: 'pill'
+      alignmentMark: 'select',
+      gripSelection: 'select',
+      headcover: 'swatch',
+      buildTime: 'radio'
+    }
+  },
+
+  // LINK.1 Custom
+  'link1': {
+    name: 'LINK.1 Custom',
+    options: ['hand', 'puttingStyle', 'shaft', 'insert', 'lieAngle', 'putterColor', 'alignmentMark', 'gripSelection', 'headcover', 'buildTime'],
+    optionTypes: {
+      hand: 'pill',
+      puttingStyle: 'pill',
+      shaft: 'select',
+      insert: 'select',
+      lieAngle: 'select',
+      putterColor: 'colorSwatch',
+      alignmentMark: 'select',
+      gripSelection: 'select',
+      headcover: 'swatch',
+      buildTime: 'radio'
     }
   }
 };
@@ -144,18 +138,8 @@ const PRODUCT_CONFIGS = {
  * 제품명으로 설정 가져오기
  */
 function getProductConfig(productName) {
-  const nameLower = productName.toLowerCase();
-
-  if (nameLower.includes('oz.1i') || nameLower.includes('oz1i')) {
-    return PRODUCT_CONFIGS['oz1i-hs'];
-  }
-
-  if (nameLower.includes('mezz') && nameLower.includes('max')) {
-    return PRODUCT_CONFIGS['mezz1-max'];
-  }
-
-  // 기본값: OZ.1i
-  return PRODUCT_CONFIGS['oz1i-hs'];
+  const type = getProductType(productName);
+  return PRODUCT_CONFIGS[type] || PRODUCT_CONFIGS['oz1i-hs'];
 }
 
 /**

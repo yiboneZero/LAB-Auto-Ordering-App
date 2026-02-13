@@ -113,26 +113,25 @@ function parseOrderText(orderText) {
  */
 function getProductUrl(productName) {
   const productUrls = {
-    'OZ.1i - CUSTOM': 'https://labgolf.com/products/oz1i-custom',
-    'OZ.1i Custom': 'https://labgolf.com/products/oz1i-custom',
-    'OZ.1i HS - CUSTOM': 'https://labgolf.com/products/oz1i-hs-custom',
-    'OZ.1i HS Custom': 'https://labgolf.com/products/oz1i-hs-custom',
-    'OZ.1 - CUSTOM': 'https://labgolf.com/products/oz-1-custom',
-    'OZ.1 Custom': 'https://labgolf.com/products/oz-1-custom',
-    'OZ.1': 'https://labgolf.com/products/oz-1-custom',
-    'MEZZ.1 MAX - CUSTOM': 'https://labgolf.com/products/mezz-1-max-custom',
-    'MEZZ.1 MAX': 'https://labgolf.com/products/mezz-1-max-custom',
-    'LINK.1 - CUSTOM': 'https://labgolf.com/products/link-1-custom',
-    'LINK. 1 - CUSTOM': 'https://labgolf.com/products/link-1-custom',
-    'LINK.1': 'https://labgolf.com/products/link-1-custom',
-    'DF3 - CUSTOM': 'https://labgolf.com/products/df3-custom',
-    'DF3 Custom': 'https://labgolf.com/products/df3-custom',
-    'DF3': 'https://labgolf.com/products/df3-custom',
-    'DF 2.1 - CUSTOM': 'https://labgolf.com/products/custom-df21',
-    'DF 2.1 Custom': 'https://labgolf.com/products/custom-df21',
-    'DF 2.1': 'https://labgolf.com/products/custom-df21',
-    'DF2.1 - CUSTOM': 'https://labgolf.com/products/custom-df21',
-    'DF2.1': 'https://labgolf.com/products/custom-df21',
+    'OZ.1i - CUSTOM': 'https://wholesale.labgolf.com/products/oz1i-custom',
+    'OZ.1i Custom': 'https://wholesale.labgolf.com/products/oz1i-custom',
+    'OZ.1i HS - CUSTOM': 'https://wholesale.labgolf.com/products/oz1i-hs-custom',
+    'OZ.1i HS Custom': 'https://wholesale.labgolf.com/products/oz1i-hs-custom',
+    'OZ.1 - CUSTOM': 'https://wholesale.labgolf.com/products/oz1-custom',
+    'OZ.1 Custom': 'https://wholesale.labgolf.com/products/oz1-custom',
+    'MEZZ.1 MAX - CUSTOM': 'https://wholesale.labgolf.com/products/mezz-1-max-custom',
+    'MEZZ.1 MAX Custom': 'https://wholesale.labgolf.com/products/mezz-1-max-custom',
+    'MEZZ.1 - CUSTOM': 'https://wholesale.labgolf.com/products/mezz1',
+    'MEZZ.1 Custom': 'https://wholesale.labgolf.com/products/mezz1',
+    'LINK.1 - CUSTOM': 'https://wholesale.labgolf.com/products/link-1-custom',
+    'LINK. 1 - CUSTOM': 'https://wholesale.labgolf.com/products/link-1-custom',
+    'DF3 - CUSTOM': 'https://wholesale.labgolf.com/products/df3-custom',
+    'DF3 Custom': 'https://wholesale.labgolf.com/products/df3-custom',
+    'DF 2.1 - CUSTOM': 'https://wholesale.labgolf.com/products/custom-df21',
+    'DF 2.1 Custom': 'https://wholesale.labgolf.com/products/custom-df21',
+    'DF2.1 - CUSTOM': 'https://wholesale.labgolf.com/products/custom-df21',
+    'DF3i CUSTOM': 'https://wholesale.labgolf.com/products/df3i-custom',
+    'DF3i - CUSTOM': 'https://wholesale.labgolf.com/products/df3i-custom',
   };
 
   // 정확한 매칭 시도
@@ -148,7 +147,7 @@ function getProductUrl(productName) {
   }
 
   // 기본값
-  return 'https://labgolf.com/products/oz1i-hs-custom';
+  return 'https://wholesale.labgolf.com/products/oz1i-hs-custom';
 }
 
 /**
