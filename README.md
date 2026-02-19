@@ -59,7 +59,6 @@ Head Weight: STANDARD
 Shaft: GEARS x L.A.B. (Black)
 Shaft Length: 34"
 Shaft Lean: 0°
-Insert: Medium Fly Mill - Stainless Steel
 Lie angle: 69°
 Putter color: Charcoal
 Alignment Mark Front: C
@@ -77,7 +76,7 @@ wholesale 사이트(Shopify + AVIS 앱)의 옵션 UI 타입별로 다른 선택 
 |---------|----------|----------|
 | Pill 버튼 | `selectPillOption()` | Hand, Putting Style, Head Weight |
 | 스와치 드롭다운 | `selectSwatchDropdown()` | Shaft, Alignment Front/Back, Grip Selection |
-| 표준 Select | `selectDropdown()` | Shaft Length, Shaft Lean, Insert, Lie Angle |
+| 표준 Select | `selectDropdown()` | Shaft Length, Shaft Lean, Lie Angle |
 | 색상 스와치 | `selectColorSwatch()` | Putter Color, Headcover |
 
 ### 옵션 매칭 전략
@@ -109,8 +108,7 @@ wholesale 사이트(Shopify + AVIS 앱)의 옵션 UI 타입별로 다른 선택 
 4. Shaft (swatch dropdown)
 4-1. Shaft Length (select)
 4-2. Shaft Lean (select) ← Grip Selection 표시 조건
-5. Insert (select)
-6. Lie Angle (select)
+5. Lie Angle (select)
 7. Putter Color (color swatch)
 8. Alignment Mark Front/Back (swatch dropdown)
 9. Grip Selection (swatch dropdown)
