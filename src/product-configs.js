@@ -4,13 +4,12 @@ const PRODUCT_CONFIGS = {
   // OZ.1i HS Custom
   'oz1i-hs': {
     name: 'OZ.1i HS Custom',
-    options: ['hand', 'puttingStyle', 'headWeight', 'shaft', 'insert', 'lieAngle', 'putterColor', 'alignmentMark', 'gripSelection', 'headcover', 'buildTime'],
+    options: ['hand', 'puttingStyle', 'headWeight', 'shaft', 'lieAngle', 'putterColor', 'alignmentMark', 'gripSelection', 'headcover', 'buildTime'],
     optionTypes: {
       hand: 'pill',
       puttingStyle: 'pill',
       headWeight: 'pill',
       shaft: 'select',
-      insert: 'select',
       lieAngle: 'select',
       putterColor: 'colorSwatch',
       alignmentMark: 'select',
@@ -23,13 +22,12 @@ const PRODUCT_CONFIGS = {
   // OZ.1i Custom
   'oz1i': {
     name: 'OZ.1i Custom',
-    options: ['hand', 'puttingStyle', 'headWeight', 'shaft', 'insert', 'lieAngle', 'putterColor', 'alignmentMark', 'gripSelection', 'headcover', 'buildTime'],
+    options: ['hand', 'puttingStyle', 'headWeight', 'shaft', 'lieAngle', 'putterColor', 'alignmentMark', 'gripSelection', 'headcover', 'buildTime'],
     optionTypes: {
       hand: 'pill',
       puttingStyle: 'pill',
       headWeight: 'pill',
       shaft: 'select',
-      insert: 'select',
       lieAngle: 'select',
       putterColor: 'colorSwatch',
       alignmentMark: 'select',
@@ -42,13 +40,12 @@ const PRODUCT_CONFIGS = {
   // OZ.1 Custom
   'oz1': {
     name: 'OZ.1 Custom',
-    options: ['hand', 'puttingStyle', 'headWeight', 'shaft', 'insert', 'lieAngle', 'putterColor', 'alignmentMark', 'gripSelection', 'headcover', 'buildTime'],
+    options: ['hand', 'puttingStyle', 'headWeight', 'shaft', 'lieAngle', 'putterColor', 'alignmentMark', 'gripSelection', 'headcover', 'buildTime'],
     optionTypes: {
       hand: 'pill',
       puttingStyle: 'pill',
       headWeight: 'pill',
       shaft: 'select',
-      insert: 'select',
       lieAngle: 'select',
       putterColor: 'colorSwatch',
       alignmentMark: 'select',
@@ -61,13 +58,12 @@ const PRODUCT_CONFIGS = {
   // DF3 Custom
   'df3': {
     name: 'DF3 Custom',
-    options: ['hand', 'puttingStyle', 'headWeight', 'shaft', 'insert', 'lieAngle', 'putterColor', 'alignmentMark', 'gripSelection', 'headcover', 'buildTime'],
+    options: ['hand', 'puttingStyle', 'headWeight', 'shaft', 'lieAngle', 'putterColor', 'alignmentMark', 'gripSelection', 'headcover', 'buildTime'],
     optionTypes: {
       hand: 'pill',
       puttingStyle: 'pill',
       headWeight: 'pill',
       shaft: 'select',
-      insert: 'select',
       lieAngle: 'select',
       putterColor: 'colorSwatch',
       alignmentMark: 'select',
@@ -80,13 +76,12 @@ const PRODUCT_CONFIGS = {
   // DF 2.1 Custom
   'df21': {
     name: 'DF 2.1 Custom',
-    options: ['hand', 'puttingStyle', 'headWeight', 'shaft', 'insert', 'lieAngle', 'putterColor', 'alignmentMark', 'gripSelection', 'headcover', 'buildTime'],
+    options: ['hand', 'puttingStyle', 'headWeight', 'shaft', 'lieAngle', 'putterColor', 'alignmentMark', 'gripSelection', 'headcover', 'buildTime'],
     optionTypes: {
       hand: 'pill',
       puttingStyle: 'pill',
       headWeight: 'pill',
       shaft: 'select',
-      insert: 'select',
       lieAngle: 'select',
       putterColor: 'colorSwatch',
       alignmentMark: 'select',
@@ -99,13 +94,12 @@ const PRODUCT_CONFIGS = {
   // MEZZ.1 MAX Custom
   'mezz1-max': {
     name: 'MEZZ.1 MAX Custom',
-    options: ['hand', 'puttingStyle', 'headWeight', 'shaft', 'insert', 'lieAngle', 'putterColor', 'alignmentMark', 'gripSelection', 'headcover', 'buildTime'],
+    options: ['hand', 'puttingStyle', 'headWeight', 'shaft', 'lieAngle', 'putterColor', 'alignmentMark', 'gripSelection', 'headcover', 'buildTime'],
     optionTypes: {
       hand: 'pill',
       puttingStyle: 'pill',
       headWeight: 'pill',
       shaft: 'select',
-      insert: 'select',
       lieAngle: 'select',
       putterColor: 'colorSwatch',
       alignmentMark: 'select',
@@ -118,12 +112,11 @@ const PRODUCT_CONFIGS = {
   // LINK.1 Custom
   'link1': {
     name: 'LINK.1 Custom',
-    options: ['hand', 'puttingStyle', 'shaft', 'insert', 'lieAngle', 'putterColor', 'alignmentMark', 'gripSelection', 'headcover', 'buildTime'],
+    options: ['hand', 'puttingStyle', 'shaft', 'lieAngle', 'putterColor', 'alignmentMark', 'gripSelection', 'headcover', 'buildTime'],
     optionTypes: {
       hand: 'pill',
       puttingStyle: 'pill',
       shaft: 'select',
-      insert: 'select',
       lieAngle: 'select',
       putterColor: 'colorSwatch',
       alignmentMark: 'select',

@@ -47,15 +47,17 @@ async function selectPillOption(page, value) {
 
 // 드롭다운(SELECT) 선택
 async function selectDropdown(page, value) {
-  return await page.evaluate((val) => {
+  // 1단계: 대상 select와 매칭되는 옵션 value 찾기
+  const found = await page.evaluate((val) => {
     const selects = document.querySelectorAll('select');
+    let selectIndex = 0;
     for (const select of selects) {
-      if (select.offsetParent === null) continue;
+      if (select.offsetParent === null) { selectIndex++; continue; }
 
-      // 1. 정확한 매칭 시도
+      // 1. 정확한 매칭
       let option = Array.from(select.options).find(opt => opt.value === val || opt.textContent?.trim() === val);
 
-      // 2. 부분 매칭 시도 (값으로 시작하거나 포함)
+      // 2. 부분 매칭
       if (!option) {
         option = Array.from(select.options).find(opt => {
           const text = opt.textContent?.trim() || '';
@@ -64,7 +66,7 @@ async function selectDropdown(page, value) {
         });
       }
 
-      // 3. 키워드 매칭 시도 (괄호/특수문자 제거 후 키워드 분리)
+      // 3. 키워드 매칭
       if (!option) {
         const keywords = val.replace(/[()]/g, ' ').split(/[\s,.\-]+/).filter(k => k.length > 1);
         if (keywords.length >= 2) {
@@ -76,13 +78,31 @@ async function selectDropdown(page, value) {
       }
 
       if (option) {
-        select.value = option.value;
-        select.dispatchEvent(new Event('change', { bubbles: true }));
-        return { success: true, selectName: select.name, selectedText: option.textContent?.trim() };
+        return { success: true, selectIndex, optionValue: option.value, selectedText: option.textContent?.trim() };
       }
+      selectIndex++;
     }
     return { success: false };
   }, value);
+
+  if (!found.success) return { success: false };
+
+  // 2단계: Playwright 네이티브 API로 선택 (브라우저 이벤트 완전 발생)
+  try {
+    const selectLocator = page.locator('select').nth(found.selectIndex);
+    await selectLocator.selectOption(found.optionValue);
+    return { success: true, selectedText: found.selectedText };
+  } catch (e) {
+    // 폴백: evaluate로 직접 선택
+    await page.evaluate((args) => {
+      const select = document.querySelectorAll('select')[args.idx];
+      if (select) {
+        select.value = args.val;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }, { idx: found.selectIndex, val: found.optionValue });
+    return { success: true, selectedText: found.selectedText };
+  }
 }
 
 // 색상 스와치 선택
@@ -291,20 +311,11 @@ async function selectAllOptions(page, options) {
     updateStatus('running', `옵션 선택: Shaft Lean - ${options.shaftLean}`, 'options', progressFor());
     const result = await selectDropdown(page, options.shaftLean);
     results.push({ option: 'Shaft Lean', value: options.shaftLean, success: result.success });
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(2000); // Shaft Lean 선택 후 옵션 로딩 대기
     currentOption++;
   }
 
-  // 5. Insert
-  if (options.insert) {
-    updateStatus('running', `옵션 선택: Insert - ${options.insert}`, 'options', progressFor());
-    const result = await selectDropdown(page, options.insert);
-    results.push({ option: 'Insert', value: options.insert, success: result.success });
-    await page.waitForTimeout(500);
-    currentOption++;
-  }
-
-  // 6. Lie Angle
+  // 5. Lie Angle
   if (options.lieAngle) {
     updateStatus('running', `옵션 선택: Lie Angle - ${options.lieAngle}`, 'options', progressFor());
     const result = await selectDropdown(page, options.lieAngle);
@@ -330,19 +341,22 @@ async function selectAllOptions(page, options) {
     results.push({ option: 'Alignment Mark', value: options.alignmentMark, success: result.success });
     await page.waitForTimeout(500);
     currentOption++;
-  } else {
-    // OZ.1i 등 Front/Back 분리
-    if (options.alignmentFront) {
-      updateStatus('running', `옵션 선택: Alignment Front - ${options.alignmentFront}`, 'options', progressFor());
-      const result = await selectSwatchDropdown(page, 'Alignment Mark Front', options.alignmentFront);
-      results.push({ option: 'Alignment Front', value: options.alignmentFront, success: result.success });
-      await page.waitForTimeout(500);
-      currentOption++;
+  } else if (options.alignmentFront) {
+    // OZ.1i 등 Front/Back 분리 시도
+    updateStatus('running', `옵션 선택: Alignment Front - ${options.alignmentFront}`, 'options', progressFor());
+    let result = await selectSwatchDropdown(page, 'Alignment Mark Front', options.alignmentFront);
+    // Front/Back 드롭다운이 없으면 단일 Alignment mark로 폴백 (DF3 등)
+    if (!result.success) {
+      result = await selectSwatchDropdown(page, 'Alignment', options.alignmentFront);
     }
-    if (options.alignmentBack) {
+    results.push({ option: 'Alignment Front', value: options.alignmentFront, success: result.success });
+    await page.waitForTimeout(500);
+    currentOption++;
+
+    if (options.alignmentBack && options.alignmentBack !== '-') {
       updateStatus('running', `옵션 선택: Alignment Back - ${options.alignmentBack}`, 'options', progressFor());
-      const result = await selectSwatchDropdown(page, 'Alignment Mark Back', options.alignmentBack);
-      results.push({ option: 'Alignment Back', value: options.alignmentBack, success: result.success });
+      const backResult = await selectSwatchDropdown(page, 'Alignment Mark Back', options.alignmentBack);
+      results.push({ option: 'Alignment Back', value: options.alignmentBack, success: backResult.success });
       await page.waitForTimeout(500);
       currentOption++;
     }

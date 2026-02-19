@@ -33,7 +33,6 @@ function parseOrderText(orderText) {
     alignmentMark: null,  // DF3용
     gripSelection: null,
     riser: 'Black', // 기본값
-    insert: 'Medium Fly Mill - Stainless Steel', // 기본값
     headcover: null, // null이면 기본 선택 유지
     buildTime: 'Standard', // 기본값
   };
@@ -94,8 +93,6 @@ function parseOrderText(orderText) {
     } else if (keyLower === 'riser') {
       // 첫 글자만 대문자로 (PLATINUM -> Platinum)
       options.riser = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
-    } else if (keyLower === 'insert') {
-      options.insert = value;
     } else if (keyLower === 'headcover') {
       options.headcover = value;
     } else if (keyLower === 'build time') {
