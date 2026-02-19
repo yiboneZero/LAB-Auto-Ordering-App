@@ -79,12 +79,16 @@ wholesale 사이트(Shopify + AVIS 앱)의 옵션 UI 타입별로 다른 선택 
 | 표준 Select | `selectDropdown()` | Shaft Length, Shaft Lean, Lie Angle |
 | 색상 스와치 | `selectColorSwatch()` | Putter Color, Headcover |
 
-### 옵션 매칭 전략
+### 옵션 매칭 전략 (3-pass)
 
 1. **정확한 매칭**: `opt.value === val` 또는 `opt.textContent === val`
-2. **부분 매칭**: `text.startsWith(val)` 또는 `text.includes(val)`
-3. **키워드 매칭**: 특수문자 제거 후 키워드 분리, 모든 키워드 포함 여부 확인
+   - 1b. 따옴표/도 기호 정규화 후 정확 매칭 (`º` → `°`, 각종 유니코드 따옴표 제거)
+2. **부분 매칭**: `text.startsWith(val)` (includes는 오매칭 위험으로 제외)
+3. **키워드 매칭**: 정규화 후 키워드 분리, 2개 이상 키워드 모두 포함 여부 확인
    - 예: `"GEARS x L.A.B. (Black)"` → `"GEARS x L.A.B. Golf - Black (+$125.00)"` 매칭
+   - 예: `"Press II 1.5º Smooth"` → `"Press II 1.5° Smooth"` 매칭 (도 기호 정규화)
+
+> **참고**: Grip Selection은 스와치 드롭다운 선택 실패 시 표준 `<select>` 폴백을 지원합니다 (COUNTERBALANCED 등 일부 제품).
 
 ## 지원 제품
 
@@ -127,6 +131,13 @@ wholesale 사이트(Shopify + AVIS 앱)의 옵션 UI 타입별로 다른 선택 
 - **실시간 통신**: Server-Sent Events (SSE)
 
 ## 변경 이력
+
+### v2.0.1 (2025-02-19)
+- selectDropdown 3-pass 매칭 리팩토링 (정확→부분→키워드, includes 제거)
+- 유니코드 정규화 강화: 따옴표 + 도 기호(`º` U+00BA → `°` U+00B0) 통합 처리
+- Grip Selection 표준 `<select>` 폴백 추가 (COUNTERBALANCED 제품 대응)
+- selectSwatchDropdown 매칭 개선: stripQuotes 적용, 키워드 최소 길이 2로 완화
+- Playwright 네이티브 `selectOption()` 사용, jQuery 이벤트 폴백 추가
 
 ### v2.0.0 (2025-02-11)
 - 옵션 자동 선택 완전 구현 (모든 UI 타입 지원)

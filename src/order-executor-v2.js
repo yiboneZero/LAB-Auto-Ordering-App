@@ -47,41 +47,71 @@ async function selectPillOption(page, value) {
 
 // 드롭다운(SELECT) 선택
 async function selectDropdown(page, value) {
-  // 1단계: 대상 select와 매칭되는 옵션 value 찾기
+  // 1단계: 대상 select와 매칭되는 옵션 value 찾기 (3-pass: 정확→부분→키워드)
   const found = await page.evaluate((val) => {
+    // 따옴표/인치 기호 정규화 (", ", ", ″ 등 → 제거) + 도 기호 정규화 (º → °)
+    const stripQuotes = (s) => s.replace(/[\u0022\u201C\u201D\u201E\u201F\u2033\u2036\u301D\u301E\uFF02\u0027\u2018\u2019\u2032]/g, '').replace(/\u00BA/g, '\u00B0');
+
     const selects = document.querySelectorAll('select');
-    let selectIndex = 0;
+
+    // 보이는 select들과 인덱스 수집
+    const visibleSelects = [];
+    let idx = 0;
     for (const select of selects) {
-      if (select.offsetParent === null) { selectIndex++; continue; }
+      if (select.offsetParent === null) { idx++; continue; }
+      visibleSelects.push({ select, selectIndex: idx });
+      idx++;
+    }
 
-      // 1. 정확한 매칭
-      let option = Array.from(select.options).find(opt => opt.value === val || opt.textContent?.trim() === val);
-
-      // 2. 부분 매칭
-      if (!option) {
-        option = Array.from(select.options).find(opt => {
-          const text = opt.textContent?.trim() || '';
-          const optVal = opt.value || '';
-          return text.startsWith(val) || optVal.startsWith(val) || text.includes(val);
-        });
-      }
-
-      // 3. 키워드 매칭
-      if (!option) {
-        const keywords = val.replace(/[()]/g, ' ').split(/[\s,.\-]+/).filter(k => k.length > 1);
-        if (keywords.length >= 2) {
-          option = Array.from(select.options).find(opt => {
-            const text = (opt.textContent?.trim() || '').toLowerCase();
-            return keywords.every(k => text.includes(k.toLowerCase()));
-          });
-        }
-      }
-
+    // Pass 1: 정확한 매칭 (모든 select 대상)
+    for (const { select, selectIndex } of visibleSelects) {
+      const option = Array.from(select.options).find(opt =>
+        opt.value === val || opt.textContent?.trim() === val
+      );
       if (option) {
         return { success: true, selectIndex, optionValue: option.value, selectedText: option.textContent?.trim() };
       }
-      selectIndex++;
     }
+
+    // Pass 1b: 따옴표 정규화 후 정확 매칭
+    const valNorm = stripQuotes(val).trim();
+    for (const { select, selectIndex } of visibleSelects) {
+      const option = Array.from(select.options).find(opt => {
+        const textNorm = stripQuotes(opt.textContent?.trim() || '');
+        const valOptNorm = stripQuotes(opt.value || '');
+        return textNorm === valNorm || valOptNorm === valNorm;
+      });
+      if (option) {
+        return { success: true, selectIndex, optionValue: option.value, selectedText: option.textContent?.trim() };
+      }
+    }
+
+    // Pass 2: 부분 매칭 (startsWith만 — includes는 오매칭 위험)
+    for (const { select, selectIndex } of visibleSelects) {
+      const option = Array.from(select.options).find(opt => {
+        const text = opt.textContent?.trim() || '';
+        const optVal = opt.value || '';
+        return text.startsWith(val) || optVal.startsWith(val);
+      });
+      if (option) {
+        return { success: true, selectIndex, optionValue: option.value, selectedText: option.textContent?.trim() };
+      }
+    }
+
+    // Pass 3: 키워드 매칭 (2개 이상 키워드가 모두 포함, 따옴표 정규화)
+    const keywords = stripQuotes(val).replace(/[()]/g, ' ').split(/[\s,.\-]+/).filter(k => k.length > 1);
+    if (keywords.length >= 2) {
+      for (const { select, selectIndex } of visibleSelects) {
+        const option = Array.from(select.options).find(opt => {
+          const text = stripQuotes(opt.textContent?.trim() || '').toLowerCase();
+          return keywords.every(k => text.includes(k.toLowerCase()));
+        });
+        if (option) {
+          return { success: true, selectIndex, optionValue: option.value, selectedText: option.textContent?.trim() };
+        }
+      }
+    }
+
     return { success: false };
   }, value);
 
@@ -91,18 +121,21 @@ async function selectDropdown(page, value) {
   try {
     const selectLocator = page.locator('select').nth(found.selectIndex);
     await selectLocator.selectOption(found.optionValue);
-    return { success: true, selectedText: found.selectedText };
   } catch (e) {
-    // 폴백: evaluate로 직접 선택
+    // 폴백: evaluate로 직접 선택 + 이벤트 발생
     await page.evaluate((args) => {
       const select = document.querySelectorAll('select')[args.idx];
       if (select) {
         select.value = args.val;
         select.dispatchEvent(new Event('change', { bubbles: true }));
+        if (window.jQuery) {
+          window.jQuery(select).trigger('change');
+        }
       }
     }, { idx: found.selectIndex, val: found.optionValue });
-    return { success: true, selectedText: found.selectedText };
   }
+
+  return { success: true, selectedText: found.selectedText };
 }
 
 // 색상 스와치 선택
@@ -174,13 +207,21 @@ async function selectSwatchDropdown(page, optionTitle, value) {
       return false;
     };
 
+    const stripQuotes = (s) => s.replace(/[\u0022\u201C\u201D\u201E\u201F\u2033\u2036\u301D\u301E\uFF02\u0027\u2018\u2019\u2032]/g, '').replace(/\u00BA/g, '\u00B0');
+
     const matchesValue = (label, val) => {
       const text = label.textContent?.trim() || '';
       if (text === val) return true;
       if (text.startsWith(val) && !text.startsWith(val + val[val.length - 1])) return true;
-      const keywords = val.replace(/[()]/g, ' ').split(/[\s,.-]+/).filter(k => k.length > 2);
+      // 따옴표 정규화 후 비교
+      const textNorm = stripQuotes(text);
+      const valNorm = stripQuotes(val);
+      if (textNorm === valNorm) return true;
+      if (textNorm.startsWith(valNorm)) return true;
+      // 키워드 매칭 (따옴표 정규화)
+      const keywords = valNorm.replace(/[()]/g, ' ').split(/[\s,.-]+/).filter(k => k.length > 1);
       if (keywords.length >= 2) {
-        const textLower = text.toLowerCase();
+        const textLower = textNorm.toLowerCase();
         if (keywords.every(k => textLower.includes(k.toLowerCase()))) return true;
       }
       return false;
@@ -362,10 +403,14 @@ async function selectAllOptions(page, options) {
     }
   }
 
-  // 9. Grip Selection (스와치 드롭다운)
+  // 9. Grip Selection (스와치 드롭다운 → 표준 select 폴백)
   if (options.gripSelection) {
     updateStatus('running', `옵션 선택: Grip Selection - ${options.gripSelection}`, 'options', progressFor());
-    const result = await selectSwatchDropdown(page, 'Grip selection', options.gripSelection);
+    let result = await selectSwatchDropdown(page, 'Grip selection', options.gripSelection);
+    // COUNTERBALANCED 등 일부 제품은 표준 <select>로 표시됨
+    if (!result.success) {
+      result = await selectDropdown(page, options.gripSelection);
+    }
     results.push({ option: 'Grip Selection', value: options.gripSelection, success: result.success });
     await page.waitForTimeout(500);
     currentOption++;
