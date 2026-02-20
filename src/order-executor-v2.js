@@ -7,10 +7,16 @@ const { getProductUrl } = require('./parser');
 let currentStatus = { status: 'idle', message: '', step: '', progress: 0 };
 let statusCallback = null;
 let isExecuting = false;
+let activeBatchProgress = null; // 배치 실행 중 컨텍스트 유지
 
 function setStatusCallback(callback) { statusCallback = callback; }
-function updateStatus(status, message, step = '', progress = 0) {
+function setBatchContext(batchProgress) { activeBatchProgress = batchProgress; }
+function clearBatchContext() { activeBatchProgress = null; }
+function updateStatus(status, message, step = '', progress = 0, batchProgress = null) {
   currentStatus = { status, message, step, progress };
+  // 명시적으로 전달된 batchProgress 우선, 없으면 활성 컨텍스트 사용
+  const bp = batchProgress || activeBatchProgress;
+  if (bp) currentStatus.batchProgress = bp;
   if (statusCallback) statusCallback(currentStatus);
   console.log(`[${progress}%] ${message}`);
 }
@@ -571,5 +577,7 @@ module.exports = {
   executeOrder,
   getStatus,
   setStatusCallback,
-  updateStatus
+  updateStatus,
+  setBatchContext,
+  clearBatchContext
 };

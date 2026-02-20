@@ -4,12 +4,14 @@ const path = require('path');
 const { parseOrderText, validateOptions } = require('./parser');
 const { executeOrder, getStatus, setStatusCallback } = require('./order-executor-v2');
 const { openBrowserForLogin, getBrowserStatus, closeBrowser } = require('./browser');
+const { parseCsvData } = require('./csv-parser');
+const { executeBatch, getBatchStatus, stopBatch, resumeBatch, clearStoppedState } = require('./batch-executor');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // 미들웨어
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, '../public')));
 
 // SSE 클라이언트 관리
@@ -95,6 +97,75 @@ app.post('/api/order', async (req, res) => {
 // 현재 상태 조회 API
 app.get('/api/status', (req, res) => {
   res.json(getStatus());
+});
+
+// ===== CSV 배치 주문 API =====
+
+// CSV 파싱 미리보기
+app.post('/api/csv/parse', (req, res) => {
+  try {
+    const { csvData } = req.body;
+    if (!csvData) {
+      return res.status(400).json({ error: 'CSV 데이터가 필요합니다.' });
+    }
+    const result = parseCsvData(csvData);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// CSV 배치 주문 실행
+app.post('/api/order/batch', async (req, res) => {
+  try {
+    const { orders } = req.body;
+    if (!orders || !Array.isArray(orders) || orders.length === 0) {
+      return res.status(400).json({ error: '주문 목록이 필요합니다.' });
+    }
+
+    const batchStatus = getBatchStatus();
+    console.log(`[API] /api/order/batch 요청: orders=${orders.length}, isBatchRunning=${batchStatus.isBatchRunning}`);
+    if (batchStatus.isBatchRunning) {
+      return res.status(409).json({ error: '이미 배치가 실행 중입니다.' });
+    }
+
+    // 즉시 응답 후 비동기 실행
+    res.json({
+      success: true,
+      message: `${orders.length}건 배치 주문이 시작되었습니다.`,
+      total: orders.length,
+    });
+
+    executeBatch(orders);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 배치 상태 조회
+app.get('/api/batch/status', (req, res) => {
+  res.json(getBatchStatus());
+});
+
+// 배치 중지
+app.post('/api/batch/stop', (req, res) => {
+  console.log(`[API] /api/batch/stop 요청`);
+  const stopped = stopBatch();
+  const { canResume } = getBatchStatus();
+  console.log(`[API] /api/batch/stop 결과: stopped=${stopped}, canResume=${canResume}`);
+  res.json({ success: stopped, canResume, message: stopped ? '배치 중지 요청됨' : '실행 중인 배치가 없습니다.' });
+});
+
+// 배치 이어하기
+app.post('/api/batch/resume', (req, res) => {
+  console.log(`[API] /api/batch/resume 요청`);
+  const result = resumeBatch();
+  console.log(`[API] /api/batch/resume 결과:`, result);
+  if (result.success) {
+    res.json(result);
+  } else {
+    res.status(409).json(result);
+  }
 });
 
 // ===== 브라우저 관련 API (v2) =====
