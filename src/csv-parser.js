@@ -1,7 +1,6 @@
 // CSV 파싱 + 옵션 변환 모듈
 const iconv = require('iconv-lite');
 const { validateOptions } = require('./parser');
-const { getProductType } = require('./product-configs');
 
 /**
  * CSV 텍스트를 파싱하여 행 배열로 변환 (RFC 4180 호환)
@@ -81,14 +80,21 @@ function decodeCsvBuffer(base64Data) {
 }
 
 // 헤더명 → 필드 매핑 (헤더에 포함된 키워드로 매칭)
+// CSV 구조 (sample2 기준):
+// 주문번호, 구분, 매장명, 피터닉네임, 모델명, 퍼팅스타일, 색상, 손잡이,
+// 헤드무게타입, 샤프트 길이, 샤프트 린, 라이각, 라이저, 샤프트명, 그립명,
+// 조준선1, 조준선2, 퍼터 갯수, 전체금액, 고객명, 전화번호, 이메일,
+// 배송방법, 배송주소, 결제방식, 등록일, 결제상태, 배송상태, 비고
 const HEADER_MAP = {
   '주문번호': 'orderId',
+  '구분': 'category',
   '매장명': 'store',
+  '피터닉네임': 'putterNickname',
   '모델명': 'model',
   '퍼팅스타일': 'puttingStyle',
   '색상': 'color',
   '손잡이': 'hand',
-  '헤드무게': 'headWeight',     // "헤드무게타입", "헤드 무게 타입" 모두 매칭
+  '헤드무게': 'headWeight',
   '샤프트 길이': 'shaftLength',
   '샤프트길이': 'shaftLength',
   '샤프트 린': 'shaftLean',
@@ -135,11 +141,12 @@ function csvRowToOptions(row, col) {
   const model = get('model');
   const product = model + ' - CUSTOM';
 
-  // Shaft Lean 처리
+  // Shaft Lean 처리: "Std"/"Standard" → null (해당 제품에 Shaft Lean 없음), "0" → "0°" (유효한 선택값)
   const shaftLeanRaw = get('shaftLean');
+  console.log('[DEBUG csv-parser] shaftLeanRaw:', JSON.stringify(shaftLeanRaw), 'leanLower:', JSON.stringify(shaftLeanRaw.toLowerCase()));
   let shaftLean = null;
   const leanLower = shaftLeanRaw.toLowerCase();
-  if (leanLower !== 'std' && leanLower !== 'standard' && leanLower !== '-' && leanLower !== '' && leanLower !== '0') {
+  if (leanLower !== 'std' && leanLower !== 'standard' && leanLower !== '-' && leanLower !== '') {
     const lean = shaftLeanRaw.replace(/[^\d.]/g, '');
     shaftLean = lean ? lean + '°' : null;
   }
@@ -173,12 +180,32 @@ function csvRowToOptions(row, col) {
   const lieAngleRaw = get('lieAngle');
   const lieAngle = lieAngleRaw ? lieAngleRaw.replace(/[^\d.]/g, '') + '°' : null;
 
+  const puttingStyle = get('puttingStyle').toUpperCase();
+  const isCounterbalanced = puttingStyle === 'COUNTERBALANCED';
+
+  // Shaft 이름 정규화: "Brand (Color-Length)" → "Brand Golf Color Shaft - Length"
+  // COUNTERBALANCED일 경우 사이트에서 Length 표기 생략하므로 제거
+  const normalizeShaftName = (name) => {
+    if (!name) return name;
+    const match = name.match(/^(.+?)\s+\((\w+)-(\w+)\)$/);
+    if (match) {
+      const [, brand, color, length] = match;
+      return isCounterbalanced
+        ? `${brand} Golf ${color} Shaft`
+        : `${brand} Golf ${color} Shaft - ${length}`;
+    }
+    if (isCounterbalanced) {
+      return name.replace(/\s+-\s+(Long|Short|Standard|Std)$/i, '').trim();
+    }
+    return name;
+  };
+
   const options = {
     product,
     hand: get('hand').toUpperCase() || null,
-    puttingStyle: get('puttingStyle').toUpperCase() || null,
+    puttingStyle,
     headWeight: get('headWeight').toUpperCase() || null,
-    shaft: get('shaft') || null,
+    shaft: normalizeShaftName(get('shaft')) || null,
     shaftLength,
     shaftLean,
     lieAngle,
@@ -194,7 +221,9 @@ function csvRowToOptions(row, col) {
 
   return {
     orderId: get('orderId'),
+    category: get('category'),
     store: get('store'),
+    putterNickname: get('putterNickname'),
     quantity: parseInt(get('quantity')) || 1,
     options,
   };
@@ -230,13 +259,19 @@ function parseCsvData(base64Data) {
     const row = dataRows[i];
     if (row.length < minCols) continue; // 컬럼 수 부족 스킵
 
+    // 모델명이 비어있으면 빈 행으로 간주하고 스킵
+    const modelVal = col.model !== undefined ? (row[col.model] || '').trim() : '';
+    if (!modelVal) continue;
+
     const parsed = csvRowToOptions(row, col);
     const validation = validateOptions(parsed.options);
 
     orders.push({
       index: i + 1,
       orderId: parsed.orderId,
+      category: parsed.category,
       store: parsed.store,
+      putterNickname: parsed.putterNickname,
       quantity: parsed.quantity,
       options: parsed.options,
       valid: validation.valid,

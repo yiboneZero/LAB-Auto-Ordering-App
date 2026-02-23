@@ -60,11 +60,15 @@ npm start        # 서버 실행 (localhost:54112)
 5. 진행 중 **"배치 중지"** 버튼으로 중지 가능
 6. 중지 후 **"이어하기"** 버튼으로 남은 주문 계속 실행
 7. 실패한 주문은 상태에 FAIL 표시, 마우스 오버 시 실패 원인 확인
+8. **단건 실행**: 주문번호를 직접 입력 후 **"단건 실행"** 클릭 → 해당 주문만 처리
+
+> 배치 진행 상태(완료/중지 여부, 행별 성공/실패)는 페이지 새로고침 후에도 **자동 복원**됩니다.
 
 #### CSV 파일 형식
 
 - **인코딩**: EUC-KR (Excel 내보내기) 또는 UTF-8 자동 감지
-- **컬럼 순서**: 주문번호, 매장명, 모델명, 퍼팅스타일, 색상, 손잡이, 헤드무게타입, 샤프트길이, 샤프트린, 라이각, 라이저, 샤프트명, 그립명, 조준선1, 조준선2, 퍼터갯수, ...
+- **컬럼 순서**: 주문번호, 구분, 매장명, 피터닉네임, 모델명, 퍼팅스타일, 색상, 손잡이, 헤드무게타입, 샤프트길이, 샤프트린, 라이각, 라이저, 샤프트명, 그립명, 조준선1, 조준선2, 퍼터갯수, 전체금액, 고객명, 전화번호, 이메일, 배송방법, 배송주소, 결제방식, 등록일, 결제상태, 배송상태, 비고
+- **모델명이 비어있는 행** 자동 스킵 (합계행 등 무시)
 
 #### 배치 실행 흐름
 
@@ -107,7 +111,7 @@ wholesale 사이트(Shopify + AVIS 앱)의 옵션 UI 타입별로 다른 선택 
 | 표준 Select | `selectDropdown()` | Shaft Length, Shaft Lean, Lie Angle |
 | 색상 스와치 | `selectColorSwatch()` | Putter Color, Headcover |
 
-### 옵션 매칭 전략 (3-pass)
+### 옵션 매칭 전략 (4-pass)
 
 1. **정확한 매칭**: `opt.value === val` 또는 `opt.textContent === val`
    - 1b. 따옴표/도 기호 정규화 후 정확 매칭 (`º` → `°`, 각종 유니코드 따옴표 제거)
@@ -115,8 +119,10 @@ wholesale 사이트(Shopify + AVIS 앱)의 옵션 UI 타입별로 다른 선택 
 3. **키워드 매칭**: 정규화 후 키워드 분리, 2개 이상 키워드 모두 포함 여부 확인
    - 예: `"GEARS x L.A.B. (Black)"` → `"GEARS x L.A.B. Golf - Black (+$125.00)"` 매칭
    - 예: `"Press II 1.5º Smooth"` → `"Press II 1.5° Smooth"` 매칭 (도 기호 정규화)
+4. **길이 접미사 제거 후 키워드 매칭**: `- Long / - Short / - Standard / - Std` 제거 후 재시도
+   - 예: `"GEARS x L.A.B. Golf Black Shaft - Long"` → 사이트에서 `"GEARS x L.A.B. Golf Black Shaft"` 표기 시 매칭
 
-> **참고**: Grip Selection은 스와치 드롭다운 선택 실패 시 표준 `<select>` 폴백을 지원합니다 (COUNTERBALANCED 등 일부 제품).
+> **참고**: Shaft 및 Grip Selection은 스와치 드롭다운 선택 실패 시 표준 `<select>` 폴백을 지원합니다 (DF 2.1, COUNTERBALANCED 등 일부 제품).
 
 ## 지원 제품
 
@@ -186,6 +192,21 @@ wholesale 사이트(Shopify + AVIS 앱)의 옵션 UI 타입별로 다른 선택 
 - **CSV 디코딩**: iconv-lite (EUC-KR 지원)
 
 ## 변경 이력
+
+### v2.2.0 (2026-02-23)
+- **단건 실행 UI**: 주문번호를 직접 입력하여 특정 1건만 재실행 가능
+- **배치 상태 localStorage 유지**: 페이지 새로고침 후에도 진행 상황(행별 성공/실패, UI 상태) 자동 복원
+- **CSV 파서 개선**:
+  - `구분`, `피터닉네임` 컬럼 파싱 추가
+  - Shaft Lean `"0"` → `"0°"` 올바르게 처리 (기존에 null로 처리되던 버그 수정)
+  - Shaft 이름 정규화: `"Brand (Color-Length)"` 형식 → `"Brand Golf Color Shaft - Length"` 자동 변환
+  - COUNTERBALANCED 제품은 Shaft 이름에서 Length 접미사 자동 제거
+  - 모델명이 비어있는 행(합계행 등) 자동 스킵
+- **옵션 매칭 Pass 4 추가**: `- Long/Short/Standard/Std` 접미사 제거 후 재매칭 (사이트 표기 불일치 대응)
+- **Shaft 선택 폴백**: 스와치 드롭다운 실패 시 표준 `<select>` 자동 시도 (DF 2.1 등 대응)
+- **디버그 로그 강화**: 매칭 실패 시 보이는 옵션 목록 콘솔 출력
+- **서버 개선**: HTML 캐시 방지 헤더, graceful shutdown (SSE 클라이언트 정리)
+- **런처 개선**: Windows에서 `taskkill /F /T`로 프로세스 트리 전체 종료
 
 ### v2.1.0 (2025-02-20)
 - CSV 일괄 주문 기능 추가 (EUC-KR/UTF-8 자동 감지)

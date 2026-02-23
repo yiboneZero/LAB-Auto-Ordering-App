@@ -105,7 +105,7 @@ async function selectDropdown(page, value) {
     }
 
     // Pass 3: 키워드 매칭 (2개 이상 키워드가 모두 포함, 따옴표 정규화)
-    const keywords = stripQuotes(val).replace(/[()]/g, ' ').split(/[\s,.\-]+/).filter(k => k.length > 1);
+    const keywords = valNorm.replace(/[()]/g, ' ').split(/[\s,.\-]+/).filter(k => k.length > 1);
     if (keywords.length >= 2) {
       for (const { select, selectIndex } of visibleSelects) {
         const option = Array.from(select.options).find(opt => {
@@ -118,10 +118,40 @@ async function selectDropdown(page, value) {
       }
     }
 
-    return { success: false };
+    // Pass 4: 길이 접미사(Long/Short/Standard/Std) 제거 후 키워드 매칭
+    // (일부 제품은 사이트에서 - Long 등을 표시하지 않음)
+    const valNoLen = valNorm.replace(/\s+-\s+(Long|Short|Standard|Std)\s*$/i, '').trim();
+    if (valNoLen !== valNorm) {
+      const kwNoLen = valNoLen.replace(/[()]/g, ' ').split(/[\s,.\-]+/).filter(k => k.length > 1);
+      if (kwNoLen.length >= 2) {
+        for (const { select, selectIndex } of visibleSelects) {
+          const option = Array.from(select.options).find(opt => {
+            const text = stripQuotes(opt.textContent?.trim() || '').toLowerCase();
+            return kwNoLen.every(k => text.includes(k.toLowerCase()));
+          });
+          if (option) {
+            return { success: true, selectIndex, optionValue: option.value, selectedText: option.textContent?.trim() };
+          }
+        }
+      }
+    }
+
+    // 디버그: 찾지 못한 경우 보이는 select 옵션들 반환
+    const debugOptions = [];
+    for (const { select } of visibleSelects) {
+      debugOptions.push(Array.from(select.options).map(o => o.textContent?.trim()));
+    }
+    return { success: false, debugOptions };
   }, value);
 
-  if (!found.success) return { success: false };
+  if (!found.success) {
+    if (found.debugOptions?.length > 0) {
+      console.log(`[selectDropdown] "${value}" 매칭 실패. 보이는 select 옵션:`, JSON.stringify(found.debugOptions));
+    } else {
+      console.log(`[selectDropdown] "${value}" - 보이는 select 없음`);
+    }
+    return { success: false };
+  }
 
   // 2단계: Playwright 네이티브 API로 선택 (브라우저 이벤트 완전 발생)
   try {
@@ -195,7 +225,10 @@ async function selectSwatchDropdown(page, optionTitle, value) {
     return { success: false };
   }, optionTitle);
 
-  if (!openResult.success) return { success: false, reason: 'not found' };
+  if (!openResult.success) {
+    console.log(`[selectSwatchDropdown] "${optionTitle}" 타이틀/라벨 못 찾음`);
+    return { success: false, reason: 'not found' };
+  }
   await page.waitForTimeout(500);
 
   const selectResult = await page.evaluate((val) => {
@@ -230,6 +263,16 @@ async function selectSwatchDropdown(page, optionTitle, value) {
         const textLower = textNorm.toLowerCase();
         if (keywords.every(k => textLower.includes(k.toLowerCase()))) return true;
       }
+      // 폴백: 길이 접미사(Long/Short/Standard/Std) 제거 후 키워드 매칭
+      // (일부 제품은 사이트에서 - Long 등을 표시하지 않음)
+      const valNoLen = valNorm.replace(/\s+-\s+(Long|Short|Standard|Std)\s*$/i, '').trim();
+      if (valNoLen !== valNorm) {
+        const kwNoLen = valNoLen.replace(/[()]/g, ' ').split(/[\s,.-]+/).filter(k => k.length > 1);
+        if (kwNoLen.length >= 2) {
+          const textLower = textNorm.toLowerCase();
+          if (kwNoLen.every(k => textLower.includes(k.toLowerCase()))) return true;
+        }
+      }
       return false;
     };
 
@@ -246,8 +289,13 @@ async function selectSwatchDropdown(page, optionTitle, value) {
         return { success: true, selected: label.textContent?.trim() };
       }
     }
-    return { success: false };
+    // 디버그: 매칭 실패 시 보이는 라벨 텍스트 반환
+    return { success: false, debugLabels: allVisibleLabels.map(l => l.textContent?.trim()) };
   }, value);
+
+  if (!selectResult.success && selectResult.debugLabels !== undefined) {
+    console.log(`[selectSwatchDropdown] "${optionTitle}" 라벨 매칭 실패 (값: "${value}"). 보이는 라벨:`, JSON.stringify(selectResult.debugLabels));
+  }
 
   return selectResult;
 }
@@ -335,10 +383,14 @@ async function selectAllOptions(page, options) {
     currentOption++;
   }
 
-  // 4. Shaft (스와치 드롭다운)
+  // 4. Shaft (스와치 드롭다운 → 표준 select 폴백)
   if (options.shaft) {
     updateStatus('running', `옵션 선택: Shaft - ${options.shaft}`, 'options', progressFor());
-    const result = await selectSwatchDropdown(page, 'Shaft', options.shaft);
+    let result = await selectSwatchDropdown(page, 'Shaft', options.shaft);
+    // DF 2.1 등 일부 제품은 표준 <select>로 표시됨
+    if (!result.success) {
+      result = await selectDropdown(page, options.shaft);
+    }
     results.push({ option: 'Shaft', value: options.shaft, success: result.success });
     await page.waitForTimeout(1000);
     currentOption++;

@@ -12,6 +12,17 @@ const PORT = process.env.PORT || 3000;
 
 // 미들웨어
 app.use(express.json({ limit: '10mb' }));
+
+// HTML 파일 캐시 방지 (브라우저가 항상 최신 HTML을 가져오도록)
+app.use((req, res, next) => {
+  if (req.path.endsWith('.html') || req.path === '/') {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+  next();
+});
+
 app.use(express.static(path.join(__dirname, '../public')));
 
 // SSE 클라이언트 관리
@@ -209,7 +220,7 @@ app.get('/', (req, res) => {
 });
 
 // 서버 시작
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log('='.repeat(50));
   console.log('LAB Golf 자동주문 시스템');
   console.log('='.repeat(50));
@@ -217,3 +228,13 @@ app.listen(PORT, () => {
   console.log('브라우저에서 위 주소로 접속하세요.');
   console.log('='.repeat(50));
 });
+
+// 종료 시그널 처리
+function gracefulShutdown() {
+  sseClients.forEach(client => client.end());
+  sseClients = [];
+  server.close(() => process.exit(0));
+}
+
+process.on('SIGINT', gracefulShutdown);
+process.on('SIGTERM', gracefulShutdown);

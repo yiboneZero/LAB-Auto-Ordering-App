@@ -442,6 +442,11 @@
       opacity: 0.7;
     }
 
+    .csv-table tr.execution-failed td {
+      background: rgba(255, 107, 107, 0.12);
+      border-bottom-color: rgba(255, 107, 107, 0.2);
+    }
+
     .csv-table .row-status {
       text-align: center;
       font-weight: 600;
@@ -583,6 +588,13 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
           <button class="btn-primary" id="csvBatchBtn" disabled>일괄주문 실행</button>
           <button class="btn-secondary" id="csvStopBtn" style="display:none; background:rgba(255,107,107,0.2); border-color:#ff6b6b; color:#ff6b6b;">배치 중지</button>
           <button class="btn-secondary" id="csvClearBtn">초기화</button>
+        </div>
+        <div id="singleOrderArea" style="display:none; margin-top:12px;">
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input type="text" id="orderIdInput" placeholder="주문번호 입력 후 단건 실행..."
+                   style="flex:1; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.2); border-radius:8px; padding:10px 16px; color:#fff; font-size:13px;">
+            <button class="btn-primary" id="csvSingleBtn" style="white-space:nowrap; padding:10px 20px;">단건 실행</button>
+          </div>
         </div>
       </div>
 
@@ -932,6 +944,7 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         btn.classList.add('active');
         document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        saveState();
       });
     });
 
@@ -954,9 +967,166 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
     const batchStatusMessage = document.getElementById('batchStatusMessage');
     const batchStatusStep = document.getElementById('batchStatusStep');
 
+    const singleOrderArea = document.getElementById('singleOrderArea');
+    const orderIdInput = document.getElementById('orderIdInput');
+    const csvSingleBtn = document.getElementById('csvSingleBtn');
+
     let csvBase64 = null;
     let csvOrders = null; // 파싱된 주문 목록
     let batchRunning = false; // 배치 실행 상태 (UI 측)
+    let currentBatchState = 'idle'; // 'idle' | 'running' | 'stopped' | 'done'
+
+    // ===== 상태 유지 (localStorage) =====
+    const STORAGE_KEY = 'labgolf_batch_state';
+
+    function saveState() {
+      console.log('[State] saveState 호출됨, csvOrders:', csvOrders ? csvOrders.length + '건' : 'null');
+      const state = {
+        activeTab: document.querySelector('.tab-btn.active')?.dataset.tab || 'single',
+        csvFileName: csvFileName.textContent || '',
+        csvOrders: csvOrders,
+        csvPreviewData: csvOrders ? {
+          total: csvOrders.length,
+          valid: csvOrders.filter(o => o.valid).length,
+          invalid: csvOrders.filter(o => !o.valid).length,
+        } : null,
+        csvPreviewVisible: csvPreviewCard.style.display !== 'none',
+        batchProgressVisible: batchProgressCard.style.display !== 'none',
+        batchProgress: {
+          label: batchLabel.textContent,
+          count: batchCount.textContent,
+          message: batchStatusMessage.textContent,
+          messageColor: batchStatusMessage.style.color,
+          progressWidth: batchProgressBar.style.width,
+        },
+        batchUIState: currentBatchState,
+        rowStatuses: {},
+      };
+
+      if (csvOrders) {
+        csvOrders.forEach((o, i) => {
+          const statusEl = document.getElementById('csv-status-' + i);
+          const rowEl = document.getElementById('csv-row-' + i);
+          if (statusEl) {
+            state.rowStatuses[i] = {
+              text: statusEl.textContent,
+              className: statusEl.className,
+              title: statusEl.title || '',
+              rowFailed: rowEl ? rowEl.classList.contains('execution-failed') : false,
+            };
+          }
+        });
+      }
+
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        console.log('[State] 저장 완료, 크기:', JSON.stringify(state).length, 'bytes');
+      } catch (e) {
+        console.warn('[State] 저장 실패:', e);
+      }
+    }
+
+    function clearSavedState() {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+
+    function loadState() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        console.log('[State] loadState 호출됨, 저장된 데이터:', saved ? saved.length + ' bytes' : 'null');
+        if (!saved) return;
+        const state = JSON.parse(saved);
+        console.log('[State] 복원할 상태:', { activeTab: state.activeTab, csvOrders: state.csvOrders?.length, batchUIState: state.batchUIState, csvPreviewVisible: state.csvPreviewVisible });
+
+        // 1. 탭 복원
+        if (state.activeTab) {
+          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+          const tabBtn = document.querySelector(`.tab-btn[data-tab="${state.activeTab}"]`);
+          if (tabBtn) tabBtn.classList.add('active');
+          const tabContent = document.getElementById('tab-' + state.activeTab);
+          if (tabContent) tabContent.classList.add('active');
+        }
+
+        // 2. CSV 주문 데이터 + 미리보기 복원
+        if (state.csvOrders && state.csvOrders.length > 0) {
+          csvOrders = state.csvOrders;
+          csvFileName.textContent = state.csvFileName || '';
+          singleOrderArea.style.display = 'block';
+
+          if (state.csvPreviewVisible && state.csvPreviewData) {
+            displayCsvPreview({
+              orders: csvOrders,
+              ...state.csvPreviewData,
+            });
+
+            // 3. 행 상태 복원 (displayCsvPreview가 초기화하므로 그 뒤에)
+            if (state.rowStatuses) {
+              Object.entries(state.rowStatuses).forEach(([idx, status]) => {
+                const statusEl = document.getElementById('csv-status-' + idx);
+                const rowEl = document.getElementById('csv-row-' + idx);
+                if (statusEl) {
+                  statusEl.textContent = status.text;
+                  statusEl.className = status.className;
+                  if (status.title) {
+                    statusEl.title = status.title;
+                    statusEl.style.cursor = 'help';
+                  }
+                }
+                if (rowEl && status.rowFailed) {
+                  rowEl.classList.add('execution-failed');
+                }
+              });
+            }
+          }
+
+          // 4. 배치 진행 상황 복원
+          if (state.batchProgressVisible) {
+            batchProgressCard.style.display = 'block';
+            batchLabel.textContent = state.batchProgress.label || '';
+            batchCount.textContent = state.batchProgress.count || '0/0';
+            batchStatusMessage.textContent = state.batchProgress.message || '';
+            batchStatusMessage.style.color = state.batchProgress.messageColor || '#8892b0';
+            batchProgressBar.style.width = state.batchProgress.progressWidth || '0%';
+          }
+
+          // 5. 배치 UI 상태 복원
+          if (state.batchUIState === 'running') {
+            // 실행 중이었으면 서버 상태 확인 후 재연결
+            checkAndReconnectBatch();
+          } else if (state.batchUIState === 'stopped') {
+            setBatchUIState('stopped');
+          } else if (state.batchUIState === 'done') {
+            setBatchUIState('done');
+          }
+
+          // csvBase64 없으므로 파싱 버튼 비활성화
+          csvParseBtn.disabled = true;
+        }
+      } catch (e) {
+        console.warn('[State] 복원 실패:', e);
+      }
+    }
+
+    // 배치 실행 중이었다면 서버 상태 확인 후 SSE 재연결
+    async function checkAndReconnectBatch() {
+      try {
+        const response = await fetch('/api/batch/status');
+        const status = await response.json();
+
+        if (status.isBatchRunning) {
+          setBatchUIState('running');
+          connectBatchSSE();
+        } else if (status.canResume) {
+          setBatchUIState('stopped');
+        } else {
+          setBatchUIState('done');
+        }
+      } catch (e) {
+        console.warn('[State] 배치 상태 확인 실패:', e);
+        setBatchUIState('done');
+      }
+    }
 
     // 파일 업로드 클릭
     csvUploadArea.addEventListener('click', () => csvFileInput.click());
@@ -1072,6 +1242,8 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
       }).join('');
 
       csvPreviewCard.style.display = 'block';
+      singleOrderArea.style.display = 'block';
+      saveState();
     }
 
     // 배치 UI 상태 전환
@@ -1080,10 +1252,12 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
     function setBatchUIState(state) {
       // state: 'idle' | 'running' | 'stopped' | 'done'
       batchRunning = (state === 'running');
+      currentBatchState = state;
 
       if (state === 'running') {
         csvBatchBtn.disabled = true;
         csvParseBtn.disabled = true;
+        csvSingleBtn.disabled = true;
         csvStopBtn.style.display = '';
         csvStopBtn.disabled = false;
         csvStopBtn.textContent = '배치 중지';
@@ -1095,6 +1269,7 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
       } else if (state === 'stopped') {
         csvBatchBtn.disabled = true;
         csvParseBtn.disabled = false;
+        csvSingleBtn.disabled = false;
         csvStopBtn.style.display = '';
         csvStopBtn.disabled = false;
         csvStopBtn.textContent = '이어하기';
@@ -1106,23 +1281,27 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
       } else if (state === 'done') {
         csvBatchBtn.disabled = false;
         csvParseBtn.disabled = false;
+        csvSingleBtn.disabled = false;
         csvStopBtn.style.display = 'none';
         stopBtnMode = 'stop';
         csvClearBtn.disabled = false;
       } else {
         // idle
+        csvSingleBtn.disabled = false;
         csvStopBtn.style.display = 'none';
         stopBtnMode = 'stop';
         csvClearBtn.disabled = false;
       }
+      saveState();
     }
 
     // SSE 배치 핸들러 (공통)
-    function connectBatchSSE() {
+    // ordersForExecution: 실행할 주문 목록 (단건 실행 시 [order] 전달, 미전달 시 전체 유효 주문 사용)
+    function connectBatchSSE(ordersForExecution) {
       if (eventSource) eventSource.close();
       eventSource = new EventSource('/api/status/stream');
 
-      const validOrders = csvOrders ? csvOrders.filter(o => o.valid) : [];
+      const validOrders = ordersForExecution || (csvOrders ? csvOrders.filter(o => o.valid) : []);
       let currentBatchIdx = -1;
 
       eventSource.onmessage = (event) => {
@@ -1137,7 +1316,7 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
 
           // 누적 결과가 있으면 항상 반영
           if (bp.results && bp.results.length > 0) {
-            bp.results.forEach((r, i) => updateCsvRowStatus(i, r));
+            bp.results.forEach((r, i) => updateCsvRowStatus(i, r, validOrders));
           }
 
           // 현재 주문 RUN 표시
@@ -1158,6 +1337,7 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
           batchLabel.textContent = bp.orderId
             ? `${bp.orderId} - ${bp.product}`
             : `주문 ${bp.current}/${bp.total}`;
+          saveState();
         }
 
         // 배치 완료
@@ -1166,7 +1346,7 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
           setBatchUIState('done');
           batchStatusMessage.style.color = status.step === 'batch_done' ? '#00ff88' : '#ff6b6b';
           if (status.batchProgress && status.batchProgress.results) {
-            status.batchProgress.results.forEach((r, i) => updateCsvRowStatus(i, r));
+            status.batchProgress.results.forEach((r, i) => updateCsvRowStatus(i, r, validOrders));
           }
         }
 
@@ -1176,7 +1356,7 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
           setBatchUIState('stopped');
           batchStatusMessage.style.color = '#ff6b6b';
           if (status.batchProgress && status.batchProgress.results) {
-            status.batchProgress.results.forEach((r, i) => updateCsvRowStatus(i, r));
+            status.batchProgress.results.forEach((r, i) => updateCsvRowStatus(i, r, validOrders));
           }
         }
       };
@@ -1290,27 +1470,92 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
       }
     });
 
-    function updateCsvRowStatus(validIdx, result) {
+    function updateCsvRowStatus(validIdx, result, ordersOverride) {
       if (!csvOrders) return;
-      const validOrders = csvOrders.filter(o => o.valid);
+      const validOrders = ordersOverride || csvOrders.filter(o => o.valid);
       const order = validOrders[validIdx];
       if (!order) return;
       const rowIdx = csvOrders.indexOf(order);
       const statusEl = document.getElementById('csv-status-' + rowIdx);
       if (!statusEl) return;
 
+      const rowEl = document.getElementById('csv-row-' + rowIdx);
       if (result.success) {
         statusEl.textContent = 'OK';
         statusEl.className = 'row-status ok';
         statusEl.title = '';
         statusEl.style.cursor = '';
+        if (rowEl) rowEl.classList.remove('execution-failed');
       } else {
         statusEl.textContent = 'FAIL';
         statusEl.className = 'row-status fail';
         statusEl.title = result.message || '알 수 없는 오류';
         statusEl.style.cursor = 'help';
+        if (rowEl) rowEl.classList.add('execution-failed');
       }
+      saveState();
     }
+
+    // 단건 실행 (주문번호로 검색 후 1건 배치 실행)
+    csvSingleBtn.addEventListener('click', async () => {
+      const orderId = orderIdInput.value.trim();
+      if (!orderId) {
+        alert('주문번호를 입력해주세요.');
+        return;
+      }
+
+      const order = csvOrders && csvOrders.find(o => o.orderId === orderId);
+      if (!order) {
+        alert(`주문번호 "${orderId}"를 찾을 수 없습니다.`);
+        return;
+      }
+      if (!order.valid) {
+        alert(`주문번호 "${orderId}"는 유효하지 않은 주문입니다.\n누락 항목: ${order.missing ? order.missing.join(', ') : '알 수 없음'}`);
+        return;
+      }
+      if (!browserConnected) {
+        alert('브라우저가 연결되지 않았습니다.');
+        return;
+      }
+
+      if (!confirm(`주문번호 "${orderId}" 단건 실행합니다. 계속하시겠습니까?`)) return;
+
+      setBatchUIState('running');
+      batchProgressCard.style.display = 'block';
+      batchProgressBar.style.width = '0%';
+      batchLabel.textContent = `${orderId} - 단건 실행`;
+      batchCount.textContent = '0/1';
+      batchStatusMessage.textContent = '준비 중...';
+      batchStatusMessage.style.color = '#8892b0';
+
+      // 해당 행 상태 초기화
+      const rowIdx = csvOrders.indexOf(order);
+      const statusEl = document.getElementById('csv-status-' + rowIdx);
+      if (statusEl) {
+        statusEl.textContent = 'WAIT';
+        statusEl.className = 'row-status pending';
+      }
+
+      connectBatchSSE([order]);
+
+      try {
+        const response = await fetch('/api/order/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orders: [order] })
+        });
+        const data = await response.json();
+        if (!data.success && data.error) {
+          if (eventSource) eventSource.close();
+          alert('오류: ' + data.error);
+          setBatchUIState('done');
+        }
+      } catch (error) {
+        if (eventSource) eventSource.close();
+        alert('오류: ' + error.message);
+        setBatchUIState('done');
+      }
+    });
 
     // CSV 초기화
     csvClearBtn.addEventListener('click', async () => {
@@ -1326,10 +1571,16 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
       csvFileName.textContent = '';
       csvPreviewCard.style.display = 'none';
       batchProgressCard.style.display = 'none';
+      singleOrderArea.style.display = 'none';
+      orderIdInput.value = '';
       setBatchUIState('idle');
       csvParseBtn.disabled = false;
       csvBatchBtn.disabled = true;
+      clearSavedState();
     });
+
+    // ===== 페이지 로드 시 상태 복원 =====
+    loadState();
   </script>
 </body>
 </html>

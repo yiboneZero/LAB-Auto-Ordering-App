@@ -71,8 +71,7 @@ async function startServer() {
   const serverProcess = spawn('node', [serverPath], {
     cwd: process.pkg ? path.dirname(process.execPath) : __dirname,
     stdio: ['ignore', 'pipe', 'pipe'],
-    detached: false,
-    shell: true
+    detached: false
   });
 
   serverProcess.stdout.on('data', (data) => {
@@ -107,15 +106,24 @@ async function startServer() {
   console.log('  이 창을 닫으면 서버가 종료됩니다.');
   console.log('==========================================');
 
+  // 서버 프로세스 종료 (Windows는 프로세스 트리 전체 종료)
+  function killServer() {
+    if (process.platform === 'win32') {
+      exec(`taskkill /F /T /PID ${serverProcess.pid}`, () => {});
+    } else {
+      serverProcess.kill();
+    }
+  }
+
   // 프로세스 종료 시 서버도 종료
   process.on('SIGINT', () => {
     console.log('\n서버를 종료합니다...');
-    serverProcess.kill();
+    killServer();
     process.exit(0);
   });
 
   process.on('SIGTERM', () => {
-    serverProcess.kill();
+    killServer();
     process.exit(0);
   });
 
@@ -127,7 +135,7 @@ async function startServer() {
       output: process.stdout
     });
     rl.on('close', () => {
-      serverProcess.kill();
+      killServer();
       process.exit(0);
     });
   }
