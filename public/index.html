@@ -1213,7 +1213,7 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
       `;
 
       csvTableHead.innerHTML = `<tr>
-        <th>#</th><th>상태</th><th>주문번호</th><th>제품</th><th>Hand</th>
+        <th>#</th><th>상태</th><th>주문번호</th><th>제품</th><th>수량</th><th>Hand</th>
         <th>Style</th><th>Weight</th><th>Shaft</th><th>Length</th><th>Lean</th>
         <th>Lie</th><th>Color</th><th>Riser</th>
         <th>Grip</th><th>Alignment</th>
@@ -1227,6 +1227,7 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
           <td class="row-status ${o.valid ? 'pending' : 'fail'}" id="csv-status-${i}">${o.valid ? '-' : 'ERR'}</td>
           <td>${o.orderId}</td>
           <td>${opt.product}</td>
+          <td>${o.quantity > 1 ? `<strong style="color:#00ff88;">${o.quantity}</strong>` : o.quantity}</td>
           <td>${opt.hand || '-'}</td>
           <td>${opt.puttingStyle || '-'}</td>
           <td>${opt.headWeight || '-'}</td>

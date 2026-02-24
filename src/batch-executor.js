@@ -50,7 +50,7 @@ async function executeBatch(ordersList, startIndex = 0, prevResults = []) {
       console.log(`${'='.repeat(50)}`);
 
       try {
-        const result = await executeOrder(order.options);
+        const result = await executeOrder(order.options, order.quantity || 1);
         results.push({
           index: current,
           orderId: order.orderId,

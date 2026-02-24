@@ -508,7 +508,7 @@ async function selectAllOptions(page, options) {
 }
 
 // ===== 메인 실행 함수 =====
-async function executeOrder(options) {
+async function executeOrder(options, quantity = 1) {
   if (isExecuting) {
     console.log('이미 주문이 실행 중입니다. 완료될 때까지 기다려주세요.');
     return { success: false, results: [], message: '이미 주문이 실행 중입니다.' };
@@ -543,6 +543,19 @@ async function executeOrder(options) {
 
     // 1단계: 모든 옵션 선택
     results = await selectAllOptions(page, options);
+
+    // 2단계: 수량 입력 (quantity > 1인 경우)
+    if (quantity > 1) {
+      updateStatus('running', `수량 설정: ${quantity}`, 'options', 88);
+      const quantityInput = await page.$('input[name="quantity"], input.quantity-input, [data-quantity-input], input[type="number"][min]');
+      if (quantityInput) {
+        await quantityInput.click({ clickCount: 3 });
+        await quantityInput.fill(String(quantity));
+        console.log(`[수량] ${quantity}개 설정 완료`);
+      } else {
+        console.log('[수량] 수량 입력 필드를 찾지 못했습니다.');
+      }
+    }
 
     // 옵션 선택 실패 체크
     const failedOptions = results.filter(r => !r.success);
