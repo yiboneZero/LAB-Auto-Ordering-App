@@ -2,7 +2,15 @@
 /**
  * LAB Golf 자동주문 런처
  * 이 파일은 exe로 컴파일되어 서버를 시작하고 브라우저를 엽니다.
+ *
+ * --server 플래그: 서버 모드로 실행 (pkg 내부에서 자기 자신을 spawn할 때 사용)
  */
+
+// pkg exe에서 --server 플래그로 호출되면 서버만 실행
+if (process.argv.includes('--server')) {
+  require('./src/server');
+  return;
+}
 
 const { spawn, exec } = require('child_process');
 const path = require('path');
@@ -58,21 +66,24 @@ async function startServer() {
 
   console.log('서버를 시작합니다...');
 
-  // 실행 파일 위치 기준으로 서버 스크립트 경로 찾기
-  let serverPath;
+  // 서버 프로세스 시작
+  // pkg exe: 자기 자신을 --server 플래그로 spawn (내장 node 런타임 사용, 외부 node 불필요)
+  // 일반 node: node src/server.js 실행
+  let serverProcess;
   if (process.pkg) {
-    // exe로 실행된 경우
-    serverPath = path.join(path.dirname(process.execPath), 'src', 'server.js');
+    serverProcess = spawn(process.execPath, ['--server'], {
+      cwd: path.dirname(process.execPath),
+      stdio: ['ignore', 'pipe', 'pipe'],
+      detached: false
+    });
   } else {
-    // 일반 node로 실행된 경우
-    serverPath = path.join(__dirname, 'src', 'server.js');
+    const serverPath = path.join(__dirname, 'src', 'server.js');
+    serverProcess = spawn(process.execPath, [serverPath], {
+      cwd: __dirname,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      detached: false
+    });
   }
-
-  const serverProcess = spawn('node', [serverPath], {
-    cwd: process.pkg ? path.dirname(process.execPath) : __dirname,
-    stdio: ['ignore', 'pipe', 'pipe'],
-    detached: false
-  });
 
   serverProcess.stdout.on('data', (data) => {
     process.stdout.write(data);

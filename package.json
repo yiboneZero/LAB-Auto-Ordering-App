@@ -7,11 +7,17 @@
   "scripts": {
     "start": "node src/index.js",
     "server": "node src/server.js",
-    "build": "npx pkg launcher.js --targets node18-win-x64 --output dist/LAB자동주문.exe",
+    "build": "npx pkg launcher.js --targets node18-win-x64 --output dist/LAB자동주문.exe && cp dist/LAB자동주문.exe dist/release/LAB자동주문.exe",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "pkg": {
-    "scripts": ["launcher.js"],
+    "scripts": ["src/**/*.js"],
+    "assets": [
+      "public/**/*",
+      "node_modules/iconv-lite/encodings/**/*",
+      "node_modules/iconv-lite/lib/**/*",
+      ".env"
+    ],
     "targets": ["node18-win-x64"],
     "outputPath": "dist"
   },
