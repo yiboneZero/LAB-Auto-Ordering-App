@@ -182,6 +182,13 @@ wholesale 사이트(Shopify + AVIS 앱)의 옵션 UI 타입별로 다른 선택 
 | GET | `/api/browser/status` | 브라우저 연결 상태 |
 | POST | `/api/browser/close` | 브라우저 닫기 |
 
+### 주문완료 알림
+| Method | 경로 | 설명 |
+|--------|------|------|
+| POST | `/api/order/notify-complete` | 단건 주문완료 외부 API 전송 (`orderId` 필드 필요) |
+
+> 응답: `{ orderId, success, returnCode, returnMsg }` — `RETURN_CODE === 0`이면 성공, 그 외 실패 (`RETURN_MSG` 에러 메시지 포함)
+
 ## 기술 스택
 
 - **런타임**: Node.js
@@ -192,6 +199,17 @@ wholesale 사이트(Shopify + AVIS 앱)의 옵션 UI 타입별로 다른 선택 
 - **CSV 디코딩**: iconv-lite (EUC-KR 지원)
 
 ## 변경 이력
+
+### v2.4.0 (2026-02-27)
+- **주문완료 전송 기능**: 배치 완료 후 "주문완료 전송" 버튼으로 성공 주문들을 외부 API에 0.5초 간격으로 순차 전송
+  - `POST /api/order/notify-complete` 엔드포인트 추가 (서버 프록시 방식으로 CORS 우회)
+  - 외부 API 응답의 `RETURN_CODE === 0` 이면 성공, 그 외 실패로 판단 (`RETURN_MSG` 기록)
+  - 건별 전송 결과(✓/✗ + 실패 사유) 목록 및 진행 프로그레스바 표시
+
+### v2.3.0 (2026-02-25)
+- Excel(.xlsx/.xls) 파일 업로드 지원 (CSV와 동일한 파싱 흐름)
+- 인-프로세스 서버 실행으로 안정성 개선 (launcher.js → server.js 직접 require)
+- CDP 락으로 동시 재연결 방지, 카트 담기 AJAX 방식 감지
 
 ### v2.2.0 (2026-02-24)
 - **수량 자동 입력**: CSV의 퍼터 갯수 컬럼을 읽어 주문 시 수량 input 자동 설정 (모든 제품 공통)

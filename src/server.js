@@ -1,4 +1,5 @@
 const path = require('path');
+const https = require('https');
 // dotenv는 launcher.js에서 이미 로드되지만, 직접 실행 시 fallback
 if (!process.env.PORT) {
   try {
@@ -225,6 +226,55 @@ app.post('/api/browser/close', async (req, res) => {
 // 서버 세션 ID (재시작 감지용)
 app.get('/api/server-session', (req, res) => {
   res.json({ sessionId: SERVER_SESSION_ID });
+});
+
+// ===== 주문완료 외부 API 전송 =====
+function notifyOrderComplete(orderCode) {
+  return new Promise((resolve) => {
+    const url = `https://labadmin.vrotein.co.kr/sub_main/fitting/api/order_complete.php?ORDER_CODE=${encodeURIComponent(orderCode)}`;
+    const req = https.get(url, (res) => {
+      let rawData = '';
+      res.on('data', chunk => { rawData += chunk; });
+      res.on('end', () => {
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          resolve({ success: false, error: `HTTP ${res.statusCode}` });
+          return;
+        }
+        try {
+          const json = JSON.parse(rawData);
+          const returnCode = parseInt(json.RETURN_CODE, 10);
+          const returnMsg = json.RETURN_MSG || '';
+          if (returnCode === 0) {
+            resolve({ success: true, returnCode, returnMsg });
+          } else {
+            resolve({ success: false, error: returnMsg || `RETURN_CODE ${returnCode}`, returnCode, returnMsg });
+          }
+        } catch (e) {
+          // JSON 파싱 실패 → HTTP 200이면 성공으로 간주
+          resolve({ success: true, statusCode: res.statusCode });
+        }
+      });
+    });
+    req.on('error', (err) => {
+      resolve({ success: false, error: err.message });
+    });
+    req.setTimeout(10000, () => {
+      req.destroy();
+      resolve({ success: false, error: '요청 시간 초과' });
+    });
+  });
+}
+
+// 단건 주문완료 전송 (클라이언트에서 루프 호출)
+app.post('/api/order/notify-complete', async (req, res) => {
+  const { orderId } = req.body;
+  if (!orderId) {
+    return res.status(400).json({ error: 'orderId가 필요합니다.' });
+  }
+  console.log(`[NOTIFY] 주문완료 전송: ${orderId}`);
+  const result = await notifyOrderComplete(orderId);
+  console.log(`[NOTIFY] 결과: orderId=${orderId}, success=${result.success}, status=${result.statusCode || result.error}`);
+  res.json({ orderId, ...result });
 });
 
 // 메인 페이지

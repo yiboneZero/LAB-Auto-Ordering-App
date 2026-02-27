@@ -1,6 +1,6 @@
 {
   "name": "labautoorderingapp",
-  "version": "1.2.1",
+  "version": "2.4.0",
   "description": "LabGolf 자동주문 프로그램",
   "main": "src/index.js",
   "bin": "launcher.js",

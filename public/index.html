@@ -589,6 +589,7 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
           <button class="btn-primary" id="csvParseBtn" disabled>파싱 미리보기</button>
           <button class="btn-primary" id="csvBatchBtn" disabled>일괄주문 실행</button>
           <button class="btn-secondary" id="csvStopBtn" style="display:none; background:rgba(255,107,107,0.2); border-color:#ff6b6b; color:#ff6b6b;">배치 중지</button>
+          <button class="btn-secondary" id="csvNotifyBtn" style="display:none; background:rgba(0,212,255,0.15); border-color:#00d4ff; color:#00d4ff;">주문완료 전송</button>
           <button class="btn-secondary" id="csvClearBtn">초기화</button>
         </div>
         <div id="singleOrderArea" style="display:none; margin-top:12px;">
@@ -625,6 +626,17 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
             <span class="status-message" id="batchStatusMessage">대기 중...</span>
             <span class="status-step" id="batchStatusStep"></span>
           </div>
+        </div>
+        <div id="notifyProgressArea" style="display:none; margin-top:16px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.1);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="color:#00d4ff; font-size:0.9rem; font-weight:500;">주문완료 전송</span>
+            <span id="notifyCount" style="color:#8892b0; font-size:0.85rem;"></span>
+          </div>
+          <div class="progress-container">
+            <div class="progress-bar" id="notifyProgressBar" style="width:0%; background:linear-gradient(90deg,#00d4ff,#0099cc);"></div>
+          </div>
+          <div style="margin-top:8px; font-size:0.85rem; color:#8892b0;" id="notifyStatusMsg"></div>
+          <div id="notifyResultsList" style="margin-top:8px; max-height:150px; overflow-y:auto; font-size:0.8rem; display:none;"></div>
         </div>
       </div>
     </div>
@@ -957,6 +969,7 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
     const csvParseBtn = document.getElementById('csvParseBtn');
     const csvBatchBtn = document.getElementById('csvBatchBtn');
     const csvStopBtn = document.getElementById('csvStopBtn');
+    const csvNotifyBtn = document.getElementById('csvNotifyBtn');
     const csvClearBtn = document.getElementById('csvClearBtn');
     const csvPreviewCard = document.getElementById('csvPreviewCard');
     const csvSummary = document.getElementById('csvSummary');
@@ -1310,6 +1323,7 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
         csvStopBtn.style.borderColor = '#ff6b6b';
         csvStopBtn.style.color = '#ff6b6b';
         stopBtnMode = 'stop';
+        csvNotifyBtn.style.display = 'none';
         csvClearBtn.disabled = true;
       } else if (state === 'stopped') {
         csvBatchBtn.disabled = true;
@@ -1322,6 +1336,7 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
         csvStopBtn.style.borderColor = '#00ff88';
         csvStopBtn.style.color = '#00ff88';
         stopBtnMode = 'resume';
+        csvNotifyBtn.style.display = 'none';
         csvClearBtn.disabled = false;
       } else if (state === 'done') {
         csvBatchBtn.disabled = false;
@@ -1330,10 +1345,17 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
         csvStopBtn.style.display = 'none';
         stopBtnMode = 'stop';
         csvClearBtn.disabled = false;
+        // OK 주문이 있을 때만 '주문완료 전송' 버튼 표시
+        const hasOk = csvOrders && csvOrders.some((o, i) => {
+          const el = document.getElementById('csv-status-' + i);
+          return el && el.textContent === 'OK';
+        });
+        csvNotifyBtn.style.display = hasOk ? '' : 'none';
       } else {
         // idle
         csvSingleBtn.disabled = false;
         csvStopBtn.style.display = 'none';
+        csvNotifyBtn.style.display = 'none';
         stopBtnMode = 'stop';
         csvClearBtn.disabled = false;
       }
@@ -1600,6 +1622,97 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
         alert('오류: ' + error.message);
         setBatchUIState('done');
       }
+    });
+
+    // 주문완료 전송
+    csvNotifyBtn.addEventListener('click', async () => {
+      if (!csvOrders) return;
+
+      const successOrders = csvOrders.filter((o, i) => {
+        const el = document.getElementById('csv-status-' + i);
+        return el && el.textContent === 'OK' && o.orderId;
+      });
+
+      if (successOrders.length === 0) {
+        alert('전송할 성공 주문이 없습니다.');
+        return;
+      }
+
+      if (!confirm(`성공한 ${successOrders.length}건에 대해 주문완료를 전송합니다. 계속하시겠습니까?`)) return;
+
+      csvNotifyBtn.disabled = true;
+      csvNotifyBtn.textContent = '전송 중...';
+
+      const notifyArea = document.getElementById('notifyProgressArea');
+      const notifyCountEl = document.getElementById('notifyCount');
+      const notifyBar = document.getElementById('notifyProgressBar');
+      const notifyMsg = document.getElementById('notifyStatusMsg');
+      const notifyList = document.getElementById('notifyResultsList');
+
+      notifyArea.style.display = 'block';
+      notifyCountEl.textContent = `0/${successOrders.length}`;
+      notifyBar.style.width = '0%';
+      notifyMsg.style.color = '#8892b0';
+      notifyMsg.textContent = '전송 준비 중...';
+      notifyList.innerHTML = '';
+      notifyList.style.display = 'block';
+
+      let successCount = 0;
+      let failCount = 0;
+
+      for (let i = 0; i < successOrders.length; i++) {
+        const order = successOrders[i];
+        notifyMsg.textContent = `전송 중: ${order.orderId} (${i + 1}/${successOrders.length})`;
+
+        let ok = false;
+        let reason = '';
+        try {
+          const response = await fetch('/api/order/notify-complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId: order.orderId })
+          });
+          const data = await response.json();
+          ok = data.success;
+          if (!ok) {
+            reason = data.error || `HTTP ${data.statusCode}`;
+          }
+        } catch (e) {
+          reason = e.message;
+        }
+
+        if (ok) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+
+        const item = document.createElement('div');
+        item.style.cssText = `padding:2px 0; color:${ok ? '#00ff88' : '#ff6b6b'};`;
+        item.textContent = ok
+          ? `✓ ${order.orderId}`
+          : `✗ ${order.orderId} — ${reason}`;
+        notifyList.appendChild(item);
+        notifyList.scrollTop = notifyList.scrollHeight;
+
+        notifyCountEl.textContent = `${i + 1}/${successOrders.length}`;
+        notifyBar.style.width = `${((i + 1) / successOrders.length) * 100}%`;
+
+        if (i < successOrders.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+
+      if (failCount === 0) {
+        notifyMsg.textContent = `완료: ${successCount}건 모두 전송 성공`;
+        notifyMsg.style.color = '#00ff88';
+      } else {
+        notifyMsg.textContent = `완료: ${successCount}건 성공, ${failCount}건 실패`;
+        notifyMsg.style.color = '#ff6b6b';
+      }
+
+      csvNotifyBtn.disabled = false;
+      csvNotifyBtn.textContent = '주문완료 전송';
     });
 
     // CSV 초기화
