@@ -84,7 +84,7 @@ async function executeBatch(ordersList, startIndex = 0, prevResults = []) {
         updateStatus('running', `${label} - 완료. 다음 주문 준비 중...`, 'batch_wait', Math.round(((i + 1) / total) * 100), {
           current, total, orderId: order.orderId, product: order.options.product, results: [...results],
         });
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
 

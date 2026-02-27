@@ -1,4 +1,10 @@
-require('dotenv').config();
+const path = require('path');
+// launcher.js에서 이미 로드되지만, 직접 실행 시 fallback
+if (!process.env.LABGOLF_ID) {
+  try {
+    require('dotenv').config({ path: path.join(__dirname, '../.env') });
+  } catch (e) { /* dotenv 없어도 계속 */ }
+}
 
 module.exports = {
   // 로그인 정보

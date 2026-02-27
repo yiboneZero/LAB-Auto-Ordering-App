@@ -978,10 +978,12 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
 
     // ===== 상태 유지 (localStorage) =====
     const STORAGE_KEY = 'labgolf_batch_state';
+    let serverSessionId = null; // 서버 재시작 감지용
 
     function saveState() {
       console.log('[State] saveState 호출됨, csvOrders:', csvOrders ? csvOrders.length + '건' : 'null');
       const state = {
+        sessionId: serverSessionId,
         activeTab: document.querySelector('.tab-btn.active')?.dataset.tab || 'single',
         csvFileName: csvFileName.textContent || '',
         csvOrders: csvOrders,
@@ -1030,12 +1032,27 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
       localStorage.removeItem(STORAGE_KEY);
     }
 
-    function loadState() {
+    async function loadState() {
       try {
+        // 서버 재시작 감지: 세션 ID가 다르면 상태 초기화
+        try {
+          const resp = await fetch('/api/server-session');
+          const data = await resp.json();
+          serverSessionId = data.sessionId;
+        } catch (e) {
+          console.warn('[State] 서버 세션 ID 조회 실패:', e);
+        }
+
         const saved = localStorage.getItem(STORAGE_KEY);
         console.log('[State] loadState 호출됨, 저장된 데이터:', saved ? saved.length + ' bytes' : 'null');
         if (!saved) return;
+
         const state = JSON.parse(saved);
+        if (serverSessionId && state.sessionId !== serverSessionId) {
+          console.log('[State] 서버 재시작 감지, 저장된 상태 초기화');
+          localStorage.removeItem(STORAGE_KEY);
+          return;
+        }
         console.log('[State] 복원할 상태:', { activeTab: state.activeTab, csvOrders: state.csvOrders?.length, batchUIState: state.batchUIState, csvPreviewVisible: state.csvPreviewVisible });
 
         // 1. 탭 복원

@@ -7,6 +7,7 @@ const { execSync, spawn } = require('child_process');
 let browser = null;
 let context = null;
 let page = null;
+let isRecovering = false; // 동시 재연결 방지 락
 
 // CDP 연결 모드 사용 여부
 const USE_CDP_MODE = true;
@@ -213,42 +214,81 @@ async function isPageValid() {
     await page.evaluate(() => true);
     return true;
   } catch (e) {
+    // 페이지 이동 중에 발생하는 오류는 페이지가 유효한 것으로 간주
+    const msg = e.message || '';
+    if (msg.includes('navigat') || msg.includes('Execution context was destroyed')) {
+      return true;
+    }
     return false;
   }
 }
 
 // 기존 browser/context에서 페이지 다시 잡기
 async function tryRecoverPage() {
+  // 동시 재연결 방지: 이미 복구 중이면 완료될 때까지 대기
+  if (isRecovering) {
+    let waited = 0;
+    while (isRecovering && waited < 3000) {
+      await new Promise(r => setTimeout(r, 100));
+      waited += 100;
+    }
+    return page !== null;
+  }
+  isRecovering = true;
   try {
-    // context에서 페이지 다시 가져오기
+    // 1단계: 현재 context의 모든 페이지 중 유효한 것 찾기
     if (context) {
-      const pages = context.pages();
-      if (pages.length > 0) {
-        page = pages[0];
-        if (await isPageValid()) {
+      for (const p of context.pages()) {
+        try {
+          await p.evaluate(() => true);
+          page = p;
           console.log('기존 context에서 페이지 복구 성공');
           return true;
-        }
+        } catch (_) {}
       }
     }
 
-    // context도 안 되면 browser에서 다시 가져오기
-    const contexts = browser.contexts();
-    for (const ctx of contexts) {
-      const pages = ctx.pages();
-      if (pages.length > 0) {
-        context = ctx;
-        page = pages[0];
-        if (await isPageValid()) {
-          console.log('browser에서 페이지 복구 성공');
-          return true;
+    // 2단계: browser의 모든 context/페이지 순회
+    if (browser) {
+      try {
+        for (const ctx of browser.contexts()) {
+          for (const p of ctx.pages()) {
+            try {
+              await p.evaluate(() => true);
+              context = ctx;
+              page = p;
+              console.log('browser context에서 페이지 복구 성공');
+              return true;
+            } catch (_) {}
+          }
         }
+      } catch (_) {}
+    }
+
+    // 3단계: CDP 재연결 시도 (연결이 stale해진 경우 복구)
+    if (USE_CDP_MODE) {
+      console.log('CDP 재연결 시도...');
+      try {
+        const newBrowser = await chromium.connectOverCDP(`http://localhost:${CDP_PORT}`);
+        const ctxs = newBrowser.contexts();
+        const newCtx = ctxs[0] || await newBrowser.newContext();
+        const newPages = newCtx.pages();
+        const newPage = newPages[0] || await newCtx.newPage();
+
+        browser = newBrowser;
+        context = newCtx;
+        page = newPage;
+        console.log('CDP 재연결 성공');
+        return true;
+      } catch (cdpErr) {
+        console.log('CDP 재연결 실패 (Chrome이 꺼진 것으로 판단):', cdpErr.message);
+        // Chrome 자체가 종료된 경우에만 browser를 null로
+        browser = null;
       }
     }
 
-    // 복구 실패 — 상태 초기화
-    console.log('페이지 복구 실패, 상태 초기화');
-    browser = null;
+    // 복구 최종 실패 — context/page 초기화
+    console.log('페이지 복구 최종 실패, 상태 초기화');
     context = null;
     page = null;
     return false;
@@ -258,6 +298,8 @@ async function tryRecoverPage() {
     context = null;
     page = null;
     return false;
+  } finally {
+    isRecovering = false;
   }
 }
 

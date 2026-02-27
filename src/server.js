@@ -1,6 +1,13 @@
-require('dotenv').config();
-const express = require('express');
 const path = require('path');
+// dotenv는 launcher.js에서 이미 로드되지만, 직접 실행 시 fallback
+if (!process.env.PORT) {
+  try {
+    require('dotenv').config({ path: path.join(__dirname, '../.env') });
+  } catch (e) {
+    // dotenv 없어도 계속 진행
+  }
+}
+const express = require('express');
 const { parseOrderText, validateOptions } = require('./parser');
 const { executeOrder, getStatus, setStatusCallback } = require('./order-executor-v2');
 const { openBrowserForLogin, getBrowserStatus, closeBrowser } = require('./browser');
@@ -8,7 +15,8 @@ const { parseCsvData } = require('./csv-parser');
 const { executeBatch, getBatchStatus, stopBatch, resumeBatch, clearStoppedState } = require('./batch-executor');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = parseInt(process.env.PORT, 10) || 54112;
+const SERVER_SESSION_ID = Date.now(); // 서버 시작마다 고유 ID
 
 // 미들웨어
 app.use(express.json({ limit: '10mb' }));
@@ -212,6 +220,11 @@ app.post('/api/browser/close', async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
+});
+
+// 서버 세션 ID (재시작 감지용)
+app.get('/api/server-session', (req, res) => {
+  res.json({ sessionId: SERVER_SESSION_ID });
 });
 
 // 메인 페이지

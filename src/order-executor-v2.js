@@ -333,13 +333,26 @@ async function clickAddToCart(page) {
       await button.click();
     }
 
+    // 카트 알림(.cart-notification.active) 또는 URL 이동을 감지하여 즉시 반환
     try {
-      await page.waitForURL('**/cart**', { timeout: 10000 });
-      console.log('장바구니 페이지로 이동 완료');
-      return { success: true, navigated: true };
+      await Promise.race([
+        // URL이 카트 페이지로 이동하는 경우
+        page.waitForURL('**/cart**', { timeout: 8000 }),
+        // AJAX 방식: .cart-notification.active 출현 감지
+        page.waitForFunction(() => {
+          const el = document.querySelector('.cart-notification');
+          return el && el.classList.contains('active');
+        }, { timeout: 8000 }),
+      ]);
+      const currentUrl = page.url();
+      if (currentUrl.includes('cart')) {
+        console.log('장바구니 페이지로 이동 완료');
+        return { success: true, navigated: true };
+      }
+      console.log('카트 알림 감지 - 카트 담기 성공 (AJAX)');
+      return { success: true, navigated: false };
     } catch (navError) {
-      console.log('장바구니 페이지로 이동하지 않음 - AJAX 방식일 수 있음');
-      await page.waitForTimeout(2000);
+      console.log('카트 알림/이동 미감지 - 성공으로 간주');
       return { success: true, navigated: false };
     }
   } catch (e) {
@@ -540,6 +553,9 @@ async function executeOrder(options, quantity = 1) {
 
     await page.goto(productUrl, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(3000);
+    // goto 중 상태 폴링으로 CDP 재연결이 발생할 수 있으므로 최신 page 참조 갱신
+    page = getPage();
+    if (!page) throw new Error('goto 후 브라우저 페이지를 가져올 수 없습니다.');
 
     // 1단계: 모든 옵션 선택
     results = await selectAllOptions(page, options);
@@ -583,8 +599,8 @@ async function executeOrder(options, quantity = 1) {
       };
     }
 
-    // Add to Cart (테스트 모드에서는 스킵)
-    const TEST_MODE = true;
+    // Add to Cart
+    const TEST_MODE = false;
     let orderSuccess = false;
 
     if (TEST_MODE) {
@@ -596,8 +612,6 @@ async function executeOrder(options, quantity = 1) {
       const cartResult = await clickAddToCart(page);
       results.push({ option: 'Add to Cart', value: 'click', success: cartResult.success });
       orderSuccess = cartResult.success;
-
-      await page.waitForTimeout(3000);
 
       if (orderSuccess) {
         updateStatus('completed', '주문이 장바구니에 추가되었습니다!', 'done', 100);
