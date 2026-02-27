@@ -486,6 +486,8 @@
       color: #8892b0;
     }
   </style>
+  <!-- SheetJS: Excel(.xlsx/.xls) 파일 지원 (로컬 번들) -->
+  <script src="/xlsx.full.min.js"></script>
 </head>
 <body>
   <div class="container">
@@ -575,11 +577,11 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
     <!-- CSV 일괄 주문 탭 -->
     <div class="tab-content" id="tab-batch">
       <div class="card">
-        <h2>2. CSV 파일 업로드</h2>
+        <h2>2. 파일 업로드</h2>
         <div class="csv-upload-area" id="csvUploadArea">
-          <input type="file" id="csvFileInput" accept=".csv">
+          <input type="file" id="csvFileInput" accept=".csv,.xlsx,.xls">
           <div class="upload-icon">CSV</div>
-          <div class="upload-text">CSV 파일을 드래그하거나 클릭하여 업로드</div>
+          <div class="upload-text">CSV / Excel 파일을 드래그하거나 클릭하여 업로드</div>
           <div class="file-name" id="csvFileName"></div>
         </div>
 
@@ -1171,20 +1173,45 @@ Grip selection: SuperStroke Flatso 2.0"></textarea>
     });
 
     function handleCsvFile(file) {
-      if (!file.name.endsWith('.csv')) {
-        alert('CSV 파일만 업로드 가능합니다.');
+      const name = file.name.toLowerCase();
+      const isExcel = name.endsWith('.xlsx') || name.endsWith('.xls');
+      const isCsv = name.endsWith('.csv');
+      if (!isCsv && !isExcel) {
+        alert('CSV 또는 Excel(.xlsx, .xls) 파일만 업로드 가능합니다.');
         return;
       }
       csvFileName.textContent = file.name;
       const reader = new FileReader();
       reader.onload = () => {
         const arrayBuffer = reader.result;
-        const bytes = new Uint8Array(arrayBuffer);
-        let binary = '';
-        for (let i = 0; i < bytes.length; i++) {
-          binary += String.fromCharCode(bytes[i]);
+        if (isExcel) {
+          // SheetJS로 Excel → CSV 변환 후 Base64 인코딩
+          try {
+            const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const csvText = XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]);
+            // UTF-8 BOM 추가 (한국어 인코딩 감지용)
+            const bom = '\uFEFF';
+            const encoder = new TextEncoder();
+            const csvBytes = encoder.encode(bom + csvText);
+            let binary = '';
+            for (let i = 0; i < csvBytes.length; i++) {
+              binary += String.fromCharCode(csvBytes[i]);
+            }
+            csvBase64 = btoa(binary);
+          } catch (err) {
+            alert('Excel 파일 파싱 실패: ' + err.message);
+            return;
+          }
+        } else {
+          // CSV: 기존 방식 (binary → base64)
+          const bytes = new Uint8Array(arrayBuffer);
+          let binary = '';
+          for (let i = 0; i < bytes.length; i++) {
+            binary += String.fromCharCode(bytes[i]);
+          }
+          csvBase64 = btoa(binary);
         }
-        csvBase64 = btoa(binary);
         csvParseBtn.disabled = false;
         csvBatchBtn.disabled = true;
         csvPreviewCard.style.display = 'none';
